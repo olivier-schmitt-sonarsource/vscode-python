@@ -42,12 +42,12 @@ function generateDefaultState(skipDefault: boolean, testMode: boolean, baseTheme
                 family: "Consolas, 'Courier New', monospace"
             },
             codeTheme: Identifiers.GeneratedThemeName,
-            activateCount: 0,
+            focusPending: 0,
             monacoReady: testMode, // When testing, monaco starts out ready
             loaded: false,
             kernel: {
-                displayName: 'Python',
-                localizedUri: getLocString('DataScience.noKernel', 'No Kernel'),
+                displayName: getLocString('DataScience.noKernel', 'No Kernel'),
+                localizedUri: getLocString('DataScience.serverNotStarted', 'Not Started'),
                 jupyterServerStatus: ServerStatus.NotStarted
             },
             settings: testMode ? getDefaultSettings() : undefined, // When testing, we don't send (or wait) for the real settings.

@@ -56,7 +56,8 @@ import {
     INotebookImporter,
     INotebookServerOptions,
     IStatusProvider,
-    IThemeFinder
+    IThemeFinder,
+    WebViewViewChangeEventArgs
 } from '../types';
 
 // tslint:disable-next-line:no-require-imports no-var-requires
@@ -84,6 +85,7 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
     private savedEvent: EventEmitter<INotebookEditor> = new EventEmitter<INotebookEditor>();
     private metadataUpdatedEvent: EventEmitter<INotebookEditor> = new EventEmitter<INotebookEditor>();
     private loadedPromise: Deferred<void> = createDeferred<void>();
+    private contentsLoadedPromise: Deferred<void> = createDeferred<void>();
     private _file: Uri = Uri.file('');
     private _dirty: boolean = false;
     private isPromptingToSaveToDisc: boolean = false;
@@ -299,6 +301,7 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
 
     public async getNotebookOptions(): Promise<INotebookServerOptions> {
         const options = await this.ipynbProvider.getNotebookOptions();
+        await this.contentsLoadedPromise.promise;
         const metadata = this.notebookJson.metadata;
         return {
             ...options,
@@ -476,8 +479,8 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         // time state changes. We use this opportunity to update our
         // extension contexts
         if (this.commandManager && this.commandManager.executeCommand) {
-            const interactiveContext = new ContextKey(EditorContexts.HaveNative, this.commandManager);
-            interactiveContext.set(!this.isDisposed).catch();
+            const nativeContext = new ContextKey(EditorContexts.HaveNative, this.commandManager);
+            nativeContext.set(!this.isDisposed).catch();
             const interactiveCellsContext = new ContextKey(EditorContexts.HaveNativeCells, this.commandManager);
             const redoableContext = new ContextKey(EditorContexts.HaveNativeRedoableCells, this.commandManager);
             const hasCellSelectedContext = new ContextKey(EditorContexts.HaveCellSelected, this.commandManager);
@@ -493,12 +496,12 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         }
     }
 
-    protected async onViewStateChanged(visible: boolean, active: boolean) {
-        super.onViewStateChanged(visible, active);
+    protected async onViewStateChanged(args: WebViewViewChangeEventArgs) {
+        super.onViewStateChanged(args);
 
         // Update our contexts
-        const interactiveContext = new ContextKey(EditorContexts.HaveNative, this.commandManager);
-        interactiveContext.set(visible && active).catch();
+        const nativeContext = new ContextKey(EditorContexts.HaveNative, this.commandManager);
+        nativeContext.set(args.current.visible && args.current.active).catch();
         this._onDidChangeViewState.fire();
     }
 
@@ -587,6 +590,7 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         if (json) {
             this.notebookJson = json;
         }
+        this.contentsLoadedPromise.resolve();
 
         // Extract cells from the json
         const cells = contents ? (json.cells as (nbformat.ICodeCell | nbformat.IRawCell | nbformat.IMarkdownCell)[]) : [];
@@ -1034,9 +1038,14 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
                 filtersObject[filtersKey] = ['ipynb'];
                 isDirty = true;
 
+                const defaultUri =
+                    Array.isArray(this.workspaceService.workspaceFolders) && this.workspaceService.workspaceFolders.length > 0
+                        ? this.workspaceService.workspaceFolders[0].uri
+                        : undefined;
                 fileToSaveTo = await this.applicationShell.showSaveDialog({
                     saveLabel: localize.DataScience.dirtyNotebookDialogTitle(),
-                    filters: filtersObject
+                    filters: filtersObject,
+                    defaultUri
                 });
             }
 

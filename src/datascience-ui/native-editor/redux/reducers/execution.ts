@@ -77,17 +77,20 @@ export namespace Execution {
                 case 'select':
                     // Select the cell below this one, but don't focus it
                     if (index < arg.prevState.cellVMs.length - 1) {
-                        return Effects.selectCell({
-                            ...arg,
-                            prevState: {
-                                ...executeResult
+                        return Effects.selectCell(
+                            {
+                                ...arg,
+                                prevState: {
+                                    ...executeResult
+                                },
+                                payload: {
+                                    ...arg.payload,
+                                    cellId: arg.prevState.cellVMs[index + 1].cell.id,
+                                    cursorPos: CursorPos.Current
+                                }
                             },
-                            payload: {
-                                ...arg.payload,
-                                cellId: arg.prevState.cellVMs[index + 1].cell.id,
-                                cursorPos: CursorPos.Current
-                            }
-                        });
+                            false
+                        );
                     }
                     return executeResult;
 
@@ -174,8 +177,10 @@ export namespace Execution {
                 arg.queueAction(createPostableAction(InteractiveWindowMessages.RemoveCell, { id: current.cell.id }));
             }
 
-            // When changing a cell type, also give the cell focus.
-            return Effects.focusCell({ ...arg, prevState: { ...arg.prevState, cellVMs }, payload: { cellId: arg.payload.cellId, cursorPos: CursorPos.Current } });
+            return {
+                ...arg.prevState,
+                cellVMs
+            };
         }
 
         return arg.prevState;

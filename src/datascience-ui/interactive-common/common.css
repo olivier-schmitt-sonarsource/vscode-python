@@ -79,6 +79,7 @@ body, html {
 }
 
 .cell-wrapper:focus {
+    outline-width: 0px;
     outline-color:var(--override-selection-background, var(--vscode-editor-selectionBackground));
 }
 
@@ -96,6 +97,13 @@ body, html {
     content: "";
     clear: both;
     display: block;
+}
+
+.edit-panel-colorized .cell-wrapper:focus {
+    outline-width: 0px;
+}
+.edit-panel .cell-wrapper:focus {
+    outline-width: 0px;
 }
 
 .cell-outer {
@@ -146,9 +154,20 @@ body, html {
 
 .cell-output-text {
     white-space: pre-wrap;
+    font-family: var(--vscode-editor-font-family);
+    font-weight: var(--vscode-editor-font-weight);
 }
+
 .cell-output-text pre {
     white-space: pre-wrap;
+    font-family: var(--vscode-editor-font-family);
+    font-weight: var(--vscode-editor-font-weight);
+}
+
+.cell-output-text xmp {
+    white-space: pre-wrap;
+    font-family: var(--vscode-editor-font-family);
+    font-weight: var(--vscode-editor-font-weight);
 }
 
 .cell-output-html {
@@ -241,10 +260,14 @@ body, html {
 .code-watermark {
     position: absolute;
     top: 3px;
-    left: 30px;
+    left: 3px;
     z-index: 500;
     font-style: italic;
     color: var(--override-watermark-color, var(--vscode-panelTitle-inactiveForeground));
+}
+
+.code-watermark:focus {
+    outline-width: 0;
 }
 
 .collapse-input-svg-rotate {
@@ -487,3 +510,12 @@ body, html {
     width: 16px;
     height: 0px;
 }
+
+.image-button-image {
+    cursor: pointer;
+}
+
+.image-button-inner-disabled-filter .image-button-image {
+    cursor: unset;
+}
+

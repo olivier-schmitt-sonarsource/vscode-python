@@ -81,7 +81,7 @@ export interface INotebookCompletion {
 export const INotebookServer = Symbol('INotebookServer');
 export interface INotebookServer extends IAsyncDisposable {
     readonly id: string;
-    createNotebook(resource: Uri, cancelToken?: CancellationToken): Promise<INotebook>;
+    createNotebook(resource: Uri, notebookMetadata?: nbformat.INotebookMetadata, cancelToken?: CancellationToken): Promise<INotebook>;
     getNotebook(resource: Uri): Promise<INotebook | undefined>;
     connect(launchInfo: INotebookServerLaunchInfo, cancelToken?: CancellationToken): Promise<void>;
     getConnectionInfo(): IConnection | undefined;
@@ -736,3 +736,9 @@ export interface IJupyterInterpreterDependencyManager {
      */
     installMissingDependencies(err?: JupyterInstallError): Promise<void>;
 }
+
+type WebViewViewState = {
+    readonly visible: boolean;
+    readonly active: boolean;
+};
+export type WebViewViewChangeEventArgs = { current: WebViewViewState; previous: WebViewViewState };

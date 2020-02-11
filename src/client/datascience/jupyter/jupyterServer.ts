@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 'use strict';
+import { nbformat } from '@jupyterlab/coreutils';
 import * as uuid from 'uuid/v4';
 import { Disposable, Uri } from 'vscode';
 import { CancellationToken } from 'vscode-jsonrpc';
@@ -31,7 +32,7 @@ export class JupyterServerBase implements INotebookServer {
         _liveShare: ILiveShareApi,
         private asyncRegistry: IAsyncDisposableRegistry,
         private disposableRegistry: IDisposableRegistry,
-        private configService: IConfigurationService,
+        protected readonly configService: IConfigurationService,
         private sessionManagerFactory: IJupyterSessionManagerFactory,
         private serviceContainer: IServiceContainer
     ) {
@@ -69,7 +70,7 @@ export class JupyterServerBase implements INotebookServer {
         this.savedSession = session;
     }
 
-    public createNotebook(resource: Uri, cancelToken?: CancellationToken): Promise<INotebook> {
+    public createNotebook(resource: Uri, notebookMetadata?: nbformat.INotebookMetadata, cancelToken?: CancellationToken): Promise<INotebook> {
         if (!this.sessionManager) {
             throw new Error(localize.DataScience.sessionDisposed());
         }
@@ -78,7 +79,16 @@ export class JupyterServerBase implements INotebookServer {
         this.savedSession = undefined;
 
         // Create a notebook and return it.
-        return this.createNotebookInstance(resource, this.sessionManager, savedSession, this.disposableRegistry, this.configService, this.serviceContainer, cancelToken);
+        return this.createNotebookInstance(
+            resource,
+            this.sessionManager,
+            savedSession,
+            this.disposableRegistry,
+            this.configService,
+            this.serviceContainer,
+            notebookMetadata,
+            cancelToken
+        );
     }
 
     public async shutdown(): Promise<void> {
@@ -179,6 +189,7 @@ export class JupyterServerBase implements INotebookServer {
         _disposableRegistry: IDisposableRegistry,
         _configService: IConfigurationService,
         _serviceContainer: IServiceContainer,
+        _notebookMetadata?: nbformat.INotebookMetadata,
         _cancelToken?: CancellationToken
     ): Promise<INotebook> {
         throw new Error('You forgot to override createNotebookInstance');
