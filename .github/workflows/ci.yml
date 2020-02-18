@@ -472,7 +472,7 @@ jobs:
           -d @- << EOF
           {
             "ref": "refs/tags/${{env.LKG_TAG}}",
-            "sha": "${{github.sha}}"
+            "sha": "88f38ec4b11ae4cf33b908614ced76f4b6ef666d"
           }
           EOF
 
