@@ -457,15 +457,15 @@ jobs:
     needs: [tests, smoke-tests]
     if: github.repository == 'microsoft/vscode-python'
     steps:
-      - name: Delete existing tag
-        run: |
-          curl -s -X DELETE https://api.github.com/repos/microsoft/vscode-python/git/refs/tags/${{env.LKG_TAG}} \
-          -H "Authorization: token ${{secrets.GITHUB_TOKEN}}"
+      # - name: Delete existing tag
+      #   run: |
+      #     curl -s -X DELETE https://api.github.com/repos/microsoft/vscode-python/git/refs/tags/${{env.LKG_TAG}} \
+      #     -H "Authorization: token ${{secrets.GITHUB_TOKEN}}"
 
       # We only need to create a tag reference for lightweight tags.
       # See https://developer.github.com/v3/git/tags/#create-a-tag-object
       # And https://developer.github.com/v3/git/refs/#create-a-reference
-      - name: Create a tag reference
+      - name: Create a CI tag reference
         run: |
           curl -s -X POST "https://api.github.com/repos/microsoft/vscode-python/git/refs" \
           -H "Authorization: token ${{secrets.GITHUB_TOKEN}}"  \
@@ -473,5 +473,16 @@ jobs:
           {
             "ref": "refs/tags/${{env.LKG_TAG}}",
             "sha": "${{github.sha}}"
+          }
+          EOF
+
+      - name: Create an Insiders tag reference
+        run: |
+          curl -s -X POST "https://api.github.com/repos/microsoft/vscode-python/git/refs" \
+          -H "Authorization: token ${{secrets.GITHUB_TOKEN}}"  \
+          -d @- << EOF
+          {
+            "ref": "refs/tags/insiders-lkg",
+            "sha": "88f38ec4b11ae4cf33b908614ced76f4b6ef666d"
           }
           EOF
