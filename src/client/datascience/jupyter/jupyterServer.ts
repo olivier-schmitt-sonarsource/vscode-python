@@ -8,12 +8,26 @@ import { CancellationToken } from 'vscode-jsonrpc';
 import { ILiveShareApi } from '../../common/application/types';
 import '../../common/extensions';
 import { traceError, traceInfo } from '../../common/logger';
-import { IAsyncDisposableRegistry, IConfigurationService, IDisposableRegistry } from '../../common/types';
+import {
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    IDisposableRegistry,
+    IOutputChannel,
+    Resource
+} from '../../common/types';
 import { createDeferred, Deferred } from '../../common/utils/async';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { IServiceContainer } from '../../ioc/types';
-import { IConnection, IJupyterSession, IJupyterSessionManager, IJupyterSessionManagerFactory, INotebook, INotebookServer, INotebookServerLaunchInfo } from '../types';
+import {
+    IConnection,
+    IJupyterSession,
+    IJupyterSessionManager,
+    IJupyterSessionManagerFactory,
+    INotebook,
+    INotebookServer,
+    INotebookServerLaunchInfo
+} from '../types';
 
 // This code is based on the examples here:
 // https://www.npmjs.com/package/@jupyterlab/services
@@ -34,13 +48,16 @@ export class JupyterServerBase implements INotebookServer {
         private disposableRegistry: IDisposableRegistry,
         protected readonly configService: IConfigurationService,
         private sessionManagerFactory: IJupyterSessionManagerFactory,
-        private serviceContainer: IServiceContainer
+        private serviceContainer: IServiceContainer,
+        private jupyterOutputChannel: IOutputChannel
     ) {
         this.asyncRegistry.push(this);
     }
 
     public async connect(launchInfo: INotebookServerLaunchInfo, cancelToken?: CancellationToken): Promise<void> {
-        traceInfo(`Connecting server ${this.id} kernelSpec ${launchInfo.kernelSpec ? launchInfo.kernelSpec.name : 'unknown'}`);
+        traceInfo(
+            `Connecting server ${this.id} kernelSpec ${launchInfo.kernelSpec ? launchInfo.kernelSpec.name : 'unknown'}`
+        );
 
         // Save our launch info
         this.launchInfo = launchInfo;
@@ -57,6 +74,9 @@ export class JupyterServerBase implements INotebookServer {
             });
         }
 
+        // Indicate we have a new session on the output channel
+        this.logRemoteOutput(localize.DataScience.connectingToJupyterUri().format(launchInfo.connectionInfo.baseUrl));
+
         // Create our session manager
         this.sessionManager = await this.sessionManagerFactory.create(launchInfo.connectionInfo);
         // Try creating a session just to ensure we're connected. Callers of this function check to make sure jupyter
@@ -70,7 +90,12 @@ export class JupyterServerBase implements INotebookServer {
         this.savedSession = session;
     }
 
-    public createNotebook(resource: Uri, notebookMetadata?: nbformat.INotebookMetadata, cancelToken?: CancellationToken): Promise<INotebook> {
+    public createNotebook(
+        resource: Resource,
+        identity: Uri,
+        notebookMetadata?: nbformat.INotebookMetadata,
+        cancelToken?: CancellationToken
+    ): Promise<INotebook> {
         if (!this.sessionManager) {
             throw new Error(localize.DataScience.sessionDisposed());
         }
@@ -81,6 +106,7 @@ export class JupyterServerBase implements INotebookServer {
         // Create a notebook and return it.
         return this.createNotebookInstance(
             resource,
+            identity,
             this.sessionManager,
             savedSession,
             this.disposableRegistry,
@@ -88,7 +114,11 @@ export class JupyterServerBase implements INotebookServer {
             this.serviceContainer,
             notebookMetadata,
             cancelToken
-        );
+        ).then(r => {
+            const baseUrl = this.launchInfo?.connectionInfo.baseUrl || '';
+            this.logRemoteOutput(localize.DataScience.createdNewNotebook().format(baseUrl));
+            return r;
+        });
     }
 
     public async shutdown(): Promise<void> {
@@ -163,27 +193,28 @@ export class JupyterServerBase implements INotebookServer {
         return new Error(localize.DataScience.sessionDisposed());
     }
 
-    public async getNotebook(resource: Uri): Promise<INotebook | undefined> {
-        return this.notebooks.get(resource.toString());
+    public async getNotebook(identity: Uri): Promise<INotebook | undefined> {
+        return this.notebooks.get(identity.toString());
     }
 
     protected getNotebooks(): INotebook[] {
         return [...this.notebooks.values()];
     }
 
-    protected setNotebook(resource: Uri, notebook: INotebook) {
+    protected setNotebook(identity: Uri, notebook: INotebook) {
         const oldDispose = notebook.dispose;
         notebook.dispose = () => {
-            this.notebooks.delete(resource.toString());
+            this.notebooks.delete(identity.toString());
             return oldDispose();
         };
 
         // Save the notebook
-        this.notebooks.set(resource.toString(), notebook);
+        this.notebooks.set(identity.toString(), notebook);
     }
 
     protected createNotebookInstance(
-        _resource: Uri,
+        _resource: Resource,
+        _identity: Uri,
         _sessionManager: IJupyterSessionManager,
         _savedSession: IJupyterSession | undefined,
         _disposableRegistry: IDisposableRegistry,
@@ -198,6 +229,12 @@ export class JupyterServerBase implements INotebookServer {
     private async destroyKernelSpec() {
         if (this.launchInfo) {
             this.launchInfo.kernelSpec = undefined;
+        }
+    }
+
+    private logRemoteOutput(output: string) {
+        if (this.launchInfo && !this.launchInfo.connectionInfo.localLaunch) {
+            this.jupyterOutputChannel.appendLine(output);
         }
     }
 }

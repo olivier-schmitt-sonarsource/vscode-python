@@ -24,10 +24,17 @@ export class ServerCache implements IAsyncDisposable {
     private cache: Map<string, IServerData> = new Map<string, IServerData>();
     private emptyKey = uuid();
 
-    constructor(private configService: IConfigurationService, private workspace: IWorkspaceService, private fileSystem: IFileSystem) {}
+    constructor(
+        private configService: IConfigurationService,
+        private workspace: IWorkspaceService,
+        private fileSystem: IFileSystem
+    ) {}
 
     public async getOrCreate(
-        createFunction: (options?: INotebookServerOptions, cancelToken?: CancellationToken) => Promise<INotebookServer | undefined>,
+        createFunction: (
+            options?: INotebookServerOptions,
+            cancelToken?: CancellationToken
+        ) => Promise<INotebookServer | undefined>,
         options?: INotebookServerOptions,
         cancelToken?: CancellationToken
     ): Promise<INotebookServer | undefined> {
@@ -136,7 +143,7 @@ export class ServerCache implements IAsyncDisposable {
     private async calculateWorkingDirectory(): Promise<string | undefined> {
         let workingDir: string | undefined;
         // For a local launch calculate the working directory that we should switch into
-        const settings = this.configService.getSettings();
+        const settings = this.configService.getSettings(undefined);
         const fileRoot = settings.datascience.notebookFileRoot;
 
         // If we don't have a workspace open the notebookFileRoot seems to often have a random location in it (we use ${workspaceRoot} as default)

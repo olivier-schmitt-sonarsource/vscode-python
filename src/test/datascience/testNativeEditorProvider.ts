@@ -6,12 +6,22 @@ import { Event, Uri } from 'vscode';
 
 import { ICommandManager, IDocumentManager, IWorkspaceService } from '../../client/common/application/types';
 import { IFileSystem } from '../../client/common/platform/types';
-import { IAsyncDisposableRegistry, IConfigurationService, IDisposableRegistry } from '../../client/common/types';
+import {
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    IDisposableRegistry,
+    Resource
+} from '../../client/common/types';
 import { InteractiveWindowMessageListener } from '../../client/datascience/interactive-common/interactiveWindowMessageListener';
 import { InteractiveWindowMessages } from '../../client/datascience/interactive-common/interactiveWindowTypes';
 import { NativeEditor } from '../../client/datascience/interactive-ipynb/nativeEditor';
 import { NativeEditorProvider } from '../../client/datascience/interactive-ipynb/nativeEditorProvider';
-import { IDataScienceErrorHandler, INotebookEditor, INotebookEditorProvider, INotebookServerOptions } from '../../client/datascience/types';
+import {
+    IDataScienceErrorHandler,
+    INotebookEditor,
+    INotebookEditorProvider,
+    INotebookServerOptions
+} from '../../client/datascience/types';
 import { IServiceContainer } from '../../client/ioc/types';
 
 @injectable()
@@ -91,7 +101,7 @@ export class TestNativeEditorProvider implements INotebookEditorProvider {
         return result;
     }
 
-    public async getNotebookOptions(): Promise<INotebookServerOptions> {
-        return this.realProvider.getNotebookOptions();
+    public async getNotebookOptions(resource: Resource): Promise<INotebookServerOptions> {
+        return this.realProvider.getNotebookOptions(resource);
     }
 }

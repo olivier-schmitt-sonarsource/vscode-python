@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 'use strict';
 import { Identifiers } from '../../../../client/datascience/constants';
+import { InteractiveWindowMessages } from '../../../../client/datascience/interactive-common/interactiveWindowTypes';
 import { IGetCssResponse } from '../../../../client/datascience/messages';
 import { IGetMonacoThemeResponse } from '../../../../client/datascience/monacoMessages';
 import { IMainState } from '../../../interactive-common/mainState';
 import { Helpers } from '../../../interactive-common/redux/reducers/helpers';
 import { storeLocStrings } from '../../../react-common/locReactSide';
+import { createPostableAction } from '../postOffice';
 import { CommonReducerArg } from './types';
 
 export namespace CommonEffects {
@@ -61,7 +63,11 @@ export namespace CommonEffects {
         // We also get this in our response, but computing is more reliable
         // than searching for it.
         const newBaseTheme =
-            arg.prevState.knownDark !== computedKnownDark && !arg.prevState.testMode ? (computedKnownDark ? 'vscode-dark' : 'vscode-light') : arg.prevState.baseTheme;
+            arg.prevState.knownDark !== computedKnownDark && !arg.prevState.testMode
+                ? computedKnownDark
+                    ? 'vscode-dark'
+                    : 'vscode-light'
+                : arg.prevState.baseTheme;
 
         let fontSize: number = 14;
         let fontFamily: string = "Consolas, 'Courier New', monospace";
@@ -110,7 +116,14 @@ export namespace CommonEffects {
     function focusPending(prevState: IMainState): IMainState {
         return {
             ...prevState,
+            // This is only applicable for interactive window & not native editor.
             focusPending: prevState.focusPending + 1
         };
+    }
+
+    export function openSettings<T>(arg: CommonReducerArg<T>): IMainState {
+        arg.queueAction(createPostableAction(InteractiveWindowMessages.OpenSettings));
+
+        return arg.prevState;
     }
 }

@@ -31,7 +31,9 @@ export class GatherProvider implements IGatherProvider {
         this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
 
         if (this._enabled) {
-            this.disposables.push(this.configService.getSettings().onDidChange(e => this.updateEnableGather(e)));
+            this.disposables.push(
+                this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
+            );
         }
 
         traceInfo('Gathering tools have been activated');
@@ -58,7 +60,8 @@ export class GatherProvider implements IGatherProvider {
         }
 
         // Get the default cell marker as we need to replace #%% with it.
-        const defaultCellMarker = this.configService.getSettings().datascience.defaultCellMarker || Identifiers.DefaultCodeCellMarker;
+        const defaultCellMarker =
+            this.configService.getSettings().datascience.defaultCellMarker || Identifiers.DefaultCodeCellMarker;
 
         // Call internal slice method
         const slice = this._executionSlicer.sliceLatestExecution(gatherCell.persistentId);
@@ -84,7 +87,10 @@ export class GatherProvider implements IGatherProvider {
     public async updateEnableGather(_e: void) {
         if (this.enabled !== this.configService.getSettings().datascience.enableGather) {
             this.enabled = this.configService.getSettings().datascience.enableGather ? true : false;
-            const item = await this.applicationShell.showInformationMessage(localize.DataScience.reloadRequired(), Common.reload());
+            const item = await this.applicationShell.showInformationMessage(
+                localize.DataScience.reloadRequired(),
+                Common.reload()
+            );
             if (!item) {
                 return;
             }

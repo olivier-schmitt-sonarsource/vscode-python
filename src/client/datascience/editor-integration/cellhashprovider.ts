@@ -1,19 +1,29 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 'use strict';
-import { nbformat } from '@jupyterlab/coreutils';
 import * as hashjs from 'hash.js';
 import { inject, injectable, multiInject, optional } from 'inversify';
 import { Event, EventEmitter, Position, Range, TextDocumentChangeEvent, TextDocumentContentChangeEvent } from 'vscode';
 
 import { splitMultilineString } from '../../../datascience-ui/common';
 import { IDebugService, IDocumentManager } from '../../common/application/types';
-import { traceInfo } from '../../common/logger';
+// tslint:disable-next-line: ordered-imports
+import { traceError, traceInfo } from '../../common/logger';
 import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
+import { noop } from '../../common/utils/misc';
+import { getCellResource } from '../cellFactory';
 import { CellMatcher } from '../cellMatcher';
+import { Identifiers } from '../constants';
 import { InteractiveWindowMessages, SysInfoReason } from '../interactive-common/interactiveWindowTypes';
-import { ICell, ICellHash, ICellHashListener, ICellHashProvider, IFileHashes, IInteractiveWindowListener } from '../types';
+import {
+    ICell,
+    ICellHash,
+    ICellHashListener,
+    ICellHashProvider,
+    IFileHashes,
+    IInteractiveWindowListener
+} from '../types';
 
 interface IRangedCellHash extends ICellHash {
     code: string;
@@ -38,7 +48,11 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
     public executionCount: number = 0;
 
     // tslint:disable-next-line: no-any
-    private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{ message: string; payload: any }>();
+    private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{
+        message: string;
+        // tslint:disable-next-line: no-any
+        payload: any;
+    }>();
     // Map of file to Map of start line to actual hash
     private hashes: Map<string, IRangedCellHash[]> = new Map<string, IRangedCellHash[]>();
     private updateEventEmitter: EventEmitter<void> = new EventEmitter<void>();
@@ -88,6 +102,41 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
             .filter(e => e.hashes.length > 0);
     }
 
+    public async preExecute(cell: ICell, silent: boolean): Promise<void> {
+        try {
+            if (!silent) {
+                // Don't log empty cells
+                const stripped = this.extractExecutableLines(cell);
+                if (stripped.length > 0 && stripped.find(s => s.trim().length > 0)) {
+                    // When the user adds new code, we know the execution count is increasing
+                    this.executionCount += 1;
+
+                    // Skip hash on unknown file though
+                    if (cell.file !== Identifiers.EmptyFileName) {
+                        await this.addCellHash(cell, this.executionCount);
+                    }
+                }
+            }
+        } catch (exc) {
+            // Don't let exceptions in a preExecute mess up normal operation
+            traceError(exc);
+        }
+    }
+
+    public async postExecute(_cell: ICell, _silent: boolean): Promise<void> {
+        noop();
+    }
+
+    public extractExecutableLines(cell: ICell): string[] {
+        const cellMatcher = new CellMatcher(this.configService.getSettings(getCellResource(cell)).datascience);
+        const lines = splitMultilineString(cell.data.source);
+        // Only strip this off the first line. Otherwise we want the markers in the code.
+        if (lines.length > 0 && (cellMatcher.isCode(lines[0]) || cellMatcher.isMarkdown(lines[0]))) {
+            return lines.slice(1);
+        }
+        return lines;
+    }
+
     public async addCellHash(cell: ICell, expectedCount: number): Promise<void> {
         // Find the text document that matches. We need more information than
         // the add code gives us
@@ -95,7 +144,7 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
         if (doc) {
             // Compute the code that will really be sent to jupyter
             const lines = splitMultilineString(cell.data.source);
-            const stripped = this.extractExecutableLines(cell.data.source);
+            const stripped = this.extractExecutableLines(cell);
 
             // Figure out our true 'start' line. This is what we need to tell the debugger is
             // actually the start of the code as that's what Jupyter will be getting.
@@ -186,16 +235,6 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
         }
     }
 
-    public extractExecutableLines(code: nbformat.MultilineString): string[] {
-        const cellMatcher = new CellMatcher(this.configService.getSettings().datascience);
-        const lines = splitMultilineString(code);
-        // Only strip this off the first line. Otherwise we want the markers in the code.
-        if (lines.length > 0 && (cellMatcher.isCode(lines[0]) || cellMatcher.isMarkdown(lines[0]))) {
-            return lines.slice(1);
-        }
-        return lines;
-    }
-
     private onChangedDocument(e: TextDocumentChangeEvent) {
         // See if the document is in our list of docs to watch
         const perFile = this.hashes.get(e.document.fileName);
@@ -245,8 +284,16 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
         });
     }
 
-    private adjustRuntimeForDebugging(cell: ICell, source: string[], _cellStartOffset: number, _cellEndOffset: number): number {
-        if (this.debugService.activeDebugSession && this.configService.getSettings().datascience.stopOnFirstLineWhileDebugging) {
+    private adjustRuntimeForDebugging(
+        cell: ICell,
+        source: string[],
+        _cellStartOffset: number,
+        _cellEndOffset: number
+    ): number {
+        if (
+            this.debugService.activeDebugSession &&
+            this.configService.getSettings(getCellResource(cell)).datascience.stopOnFirstLineWhileDebugging
+        ) {
             // Inject the breakpoint line
             source.splice(0, 0, 'breakpoint()\n');
             cell.data.source = source;

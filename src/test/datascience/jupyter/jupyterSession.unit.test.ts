@@ -17,6 +17,7 @@ import { JupyterSession } from '../../../client/datascience/jupyter/jupyterSessi
 import { KernelSelector } from '../../../client/datascience/jupyter/kernels/kernelSelector';
 import { LiveKernelModel } from '../../../client/datascience/jupyter/kernels/types';
 import { IConnection, IJupyterKernelSpec } from '../../../client/datascience/types';
+import { MockOutputChannel } from '../../mockClasses';
 
 // tslint:disable: max-func-body-length
 suite('Data Science - JupyterSession', () => {
@@ -63,6 +64,7 @@ suite('Data Science - JupyterSession', () => {
         kernelChangedSignal = mock(Signal);
         when(session.statusChanged).thenReturn(instance(statusChangedSignal));
         when(session.kernelChanged).thenReturn(instance(kernelChangedSignal));
+        const channel = new MockOutputChannel('JUPYTER');
         // tslint:disable-next-line: no-any
         (instance(session) as any).then = undefined;
         sessionManager = mock(SessionManager);
@@ -73,7 +75,8 @@ suite('Data Science - JupyterSession', () => {
             kernelSpec.object,
             instance(sessionManager),
             instance(contentsManager),
-            instance(kernelSelector)
+            instance(kernelSelector),
+            channel
         );
     });
 
@@ -219,8 +222,10 @@ suite('Data Science - JupyterSession', () => {
                     const signal = mock(Signal);
                     when(remoteSession.statusChanged).thenReturn(instance(signal));
                     verify(sessionManager.startNew(anything())).once();
-                    // tslint:disable-next-line: no-any
-                    when(sessionManager.connectTo(newActiveRemoteKernel.session)).thenReturn(newActiveRemoteKernel.session as any);
+                    when(sessionManager.connectTo(newActiveRemoteKernel.session)).thenReturn(
+                        // tslint:disable-next-line: no-any
+                        newActiveRemoteKernel.session as any
+                    );
 
                     assert.isFalse(remoteSessionInstance.isRemoteSession);
                     await jupyterSession.changeKernel(newActiveRemoteKernel, 10000);
@@ -268,8 +273,12 @@ suite('Data Science - JupyterSession', () => {
                 kernelRemovedFromIgnoreList = createDeferred<void>();
                 when(restartSession.statusChanged).thenReturn(instance(restartStatusChangedSignal));
                 when(restartSession.kernelChanged).thenReturn(instance(restartKernelChangedSignal));
-                when(kernelSelector.addKernelToIgnoreList(anything())).thenCall(() => kernelAddedToIgnoreList.resolve());
-                when(kernelSelector.removeKernelFromIgnoreList(anything())).thenCall(() => kernelRemovedFromIgnoreList.resolve());
+                when(kernelSelector.addKernelToIgnoreList(anything())).thenCall(() =>
+                    kernelAddedToIgnoreList.resolve()
+                );
+                when(kernelSelector.removeKernelFromIgnoreList(anything())).thenCall(() =>
+                    kernelRemovedFromIgnoreList.resolve()
+                );
                 // tslint:disable-next-line: no-any
                 (instance(restartSession) as any).then = undefined;
                 newSessionCreated = createDeferred();

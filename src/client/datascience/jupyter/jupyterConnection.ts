@@ -60,7 +60,7 @@ export class JupyterConnectionWaiter implements IDisposable {
         this.startPromise = createDeferred<IConnection>();
 
         // We want to reject our Jupyter connection after a specific timeout
-        const settings = this.configService.getSettings();
+        const settings = this.configService.getSettings(undefined);
         const jupyterLaunchTimeout = settings.datascience.jupyterLaunchTimeout;
 
         this.launchTimeout = setTimeout(() => {
@@ -114,7 +114,9 @@ export class JupyterConnectionWaiter implements IDisposable {
     // tslint:disable-next-line:no-any
     private getJupyterURL(serverInfos: JupyterServerInfo[] | undefined, data: any) {
         if (serverInfos && serverInfos.length > 0 && !this.startPromise.completed) {
-            const matchInfo = serverInfos.find(info => this.fileSystem.arePathsSame(this.notebookDir, info.notebook_dir));
+            const matchInfo = serverInfos.find(info =>
+                this.fileSystem.arePathsSame(this.notebookDir, info.notebook_dir)
+            );
             if (matchInfo) {
                 const url = matchInfo.url;
                 const token = matchInfo.token;
@@ -152,7 +154,11 @@ export class JupyterConnectionWaiter implements IDisposable {
             }
 
             // Here we parsed the URL correctly
-            this.resolveStartPromise(`${url.protocol}//${url.host}${url.pathname}`, `${url.searchParams.get('token')}`, url.hostname);
+            this.resolveStartPromise(
+                `${url.protocol}//${url.host}${url.pathname}`,
+                `${url.searchParams.get('token')}`,
+                url.hostname
+            );
         }
     }
 
@@ -199,7 +205,11 @@ export class JupyterConnectionWaiter implements IDisposable {
         // tslint:disable-next-line: no-any
         clearTimeout(this.launchTimeout as any);
         if (!this.startPromise.resolved) {
-            this.startPromise.reject(Cancellation.isCanceled(this.cancelToken) ? new CancellationError() : new JupyterConnectError(message, this.stderr.join('\n')));
+            this.startPromise.reject(
+                Cancellation.isCanceled(this.cancelToken)
+                    ? new CancellationError()
+                    : new JupyterConnectError(message, this.stderr.join('\n'))
+            );
         }
     };
 }

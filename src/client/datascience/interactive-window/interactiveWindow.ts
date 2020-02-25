@@ -3,13 +3,28 @@
 'use strict';
 import { inject, injectable, multiInject, named } from 'inversify';
 import * as path from 'path';
-import { Event, EventEmitter, Memento, TextEditor, Uri, ViewColumn } from 'vscode';
-import { IApplicationShell, ICommandManager, IDocumentManager, ILiveShareApi, IWebPanelProvider, IWorkspaceService } from '../../common/application/types';
+import { Event, EventEmitter, Memento, Uri, ViewColumn } from 'vscode';
+import {
+    IApplicationShell,
+    ICommandManager,
+    IDocumentManager,
+    ILiveShareApi,
+    IWebPanelProvider,
+    IWorkspaceService
+} from '../../common/application/types';
 import { ContextKey } from '../../common/contextKey';
 import '../../common/extensions';
 import { traceError } from '../../common/logger';
 import { IFileSystem } from '../../common/platform/types';
-import { GLOBAL_MEMENTO, IConfigurationService, IDisposableRegistry, IExperimentsManager, IMemento, IPersistentStateFactory } from '../../common/types';
+import {
+    GLOBAL_MEMENTO,
+    IConfigurationService,
+    IDisposableRegistry,
+    IExperimentsManager,
+    IMemento,
+    IPersistentStateFactory,
+    Resource
+} from '../../common/types';
 import * as localize from '../../common/utils/localize';
 import { EXTENSION_ROOT_DIR } from '../../constants';
 import { IInterpreterService } from '../../interpreter/contracts';
@@ -45,13 +60,17 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
     public get onDidChangeViewState(): Event<void> {
         return this._onDidChangeViewState.event;
     }
-    private _onDidChangeViewState = new EventEmitter<void>();
     public get visible(): boolean {
         return this.viewState.visible;
     }
     public get active(): boolean {
         return this.viewState.active;
     }
+
+    public get closed(): Event<IInteractiveWindow> {
+        return this.closedEvent.event;
+    }
+    private _onDidChangeViewState = new EventEmitter<void>();
     private closedEvent: EventEmitter<IInteractiveWindow> = new EventEmitter<IInteractiveWindow>();
     private waitingForExportCells: boolean = false;
     private trackedJupyterStart: boolean = false;
@@ -110,7 +129,11 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
             commandManager,
             globalStorage,
             historyReactDir,
-            [path.join(historyReactDir, 'monaco.bundle.js'), path.join(historyReactDir, 'commons.initial.bundle.js'), path.join(historyReactDir, 'interactiveWindow.js')],
+            [
+                path.join(historyReactDir, 'monaco.bundle.js'),
+                path.join(historyReactDir, 'commons.initial.bundle.js'),
+                path.join(historyReactDir, 'interactiveWindow.js')
+            ],
             localize.DataScience.historyTitle(),
             ViewColumn.Two,
             experimentsManager
@@ -128,10 +151,6 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         if (this.closedEvent) {
             this.closedEvent.fire(this);
         }
-    }
-
-    public get closed(): Event<IInteractiveWindow> {
-        return this.closedEvent.event;
     }
 
     public addMessage(message: string): Promise<void> {
@@ -154,7 +173,10 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         return super.show();
     }
 
-    public async addCode(code: string, file: string, line: number, editor?: TextEditor): Promise<boolean> {
+    public async addCode(code: string, file: string, line: number): Promise<boolean> {
+        if (this.lastFile && !this.fileSystem.arePathsSame(file, this.lastFile)) {
+            sendTelemetryEvent(Telemetry.NewFileForInteractiveWindow);
+        }
         // Save the last file we ran with.
         this.lastFile = file;
 
@@ -165,7 +187,7 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         this.updateCwd(path.dirname(file));
 
         // Call the internal method.
-        return this.submitCode(code, file, line, undefined, editor, false);
+        return this.submitCode(code, file, line);
     }
 
     public exportCells() {
@@ -194,7 +216,7 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         }
     }
 
-    public async debugCode(code: string, file: string, line: number, editor?: TextEditor): Promise<boolean> {
+    public async debugCode(code: string, file: string, line: number): Promise<boolean> {
         let saved = true;
         // Make sure the file is saved before debugging
         const doc = this.documentManager.textDocuments.find(d => this.fileSystem.arePathsSame(d.fileName, file));
@@ -213,16 +235,13 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
 
                     // Open the new document
                     await this.documentManager.openTextDocument(file);
-
-                    // Change the editor to the new file
-                    editor = this.documentManager.visibleTextEditors.find(e => e.document.fileName === file);
                 }
             }
         }
 
         // Call the internal method if we were able to save
         if (saved) {
-            return this.submitCode(code, file, line, undefined, editor, true);
+            return this.submitCode(code, file, line, undefined, undefined, true);
         }
 
         return false;
@@ -242,6 +261,17 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
     public scrollToCell(id: string): void {
         this.postMessage(InteractiveWindowMessages.ScrollToCell, { id }).ignoreErrors();
     }
+
+    protected async getOwningResource(): Promise<Resource> {
+        if (this.lastFile) {
+            return Uri.file(this.lastFile);
+        }
+        const root = this.workspaceService.rootPath;
+        if (root) {
+            return Uri.file(root);
+        }
+        return undefined;
+    }
     protected async onViewStateChanged(args: WebViewViewChangeEventArgs) {
         super.onViewStateChanged(args);
         this._onDidChangeViewState.fire();
@@ -253,7 +283,7 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         // If there's any payload, it has the code and the id
         if (info && info.code && info.id) {
             // Send to ourselves.
-            this.submitCode(info.code, Identifiers.EmptyFileName, 0, info.id, undefined).ignoreErrors();
+            this.submitCode(info.code, Identifiers.EmptyFileName, 0, info.id).ignoreErrors();
 
             // Activate the other side, and send as if came from a file
             this.interactiveWindowProvider
@@ -272,8 +302,8 @@ export class InteractiveWindow extends InteractiveBase implements IInteractiveWi
         }
     }
 
-    protected getNotebookOptions(): Promise<INotebookServerOptions> {
-        return this.interactiveWindowProvider.getNotebookOptions();
+    protected async getNotebookOptions(): Promise<INotebookServerOptions> {
+        return this.interactiveWindowProvider.getNotebookOptions(await this.getOwningResource());
     }
 
     protected async getNotebookIdentity(): Promise<Uri> {

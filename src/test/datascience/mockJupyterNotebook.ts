@@ -4,6 +4,7 @@
 import { JSONObject } from '@phosphor/coreutils/lib/json';
 import { Observable } from 'rxjs/Observable';
 import { CancellationToken, Event, EventEmitter, Uri } from 'vscode';
+import { Resource } from '../../client/common/types';
 import { Identifiers } from '../../client/datascience/constants';
 import { LiveKernelModel } from '../../client/datascience/jupyter/kernels/types';
 import {
@@ -22,11 +23,19 @@ import { ServerStatus } from '../../datascience-ui/interactive-common/mainState'
 import { noop } from '../core';
 
 export class MockJupyterNotebook implements INotebook {
+    public onKernelChanged: Event<IJupyterKernelSpec | LiveKernelModel> = new EventEmitter<
+        IJupyterKernelSpec | LiveKernelModel
+    >().event;
+    private onStatusChangedEvent: EventEmitter<ServerStatus> | undefined;
+    constructor(private owner: INotebookServer) {
+        noop();
+    }
+
     public get server(): INotebookServer {
         return this.owner;
     }
 
-    public get resource(): Uri {
+    public get identity(): Uri {
         return Uri.parse(Identifiers.InteractiveWindowIdentity);
     }
 
@@ -40,16 +49,15 @@ export class MockJupyterNotebook implements INotebook {
     public get status(): ServerStatus {
         return ServerStatus.Idle;
     }
-    public onKernelChanged: Event<IJupyterKernelSpec | LiveKernelModel> = new EventEmitter<IJupyterKernelSpec | LiveKernelModel>().event;
-    private onStatusChangedEvent: EventEmitter<ServerStatus> | undefined;
-    constructor(private owner: INotebookServer) {
-        noop();
-    }
     public getGatherProvider(): IGatherProvider | undefined {
         throw new Error('Method not implemented.');
     }
     public getCellHashProvider(): ICellHashProvider | undefined {
         throw new Error('Method not implemented.');
+    }
+
+    public get resource(): Resource {
+        return Uri.file('foo.py');
     }
 
     public clear(_id: string): void {
@@ -63,7 +71,11 @@ export class MockJupyterNotebook implements INotebook {
         return Promise.resolve({});
     }
 
-    public async getCompletion(_cellCode: string, _offsetInCode: number, _cancelToken?: CancellationToken): Promise<INotebookCompletion> {
+    public async getCompletion(
+        _cellCode: string,
+        _offsetInCode: number,
+        _cancelToken?: CancellationToken
+    ): Promise<INotebookCompletion> {
         throw new Error('Method not implemented');
     }
     public execute(_code: string, _f: string, _line: number): Promise<ICell[]> {

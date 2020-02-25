@@ -42,7 +42,7 @@ function logToFile(logLevel: LogLevel, ...args: any[]) {
  * Initialize the logger for console.
  * We do two things here:
  * - Anything written to the logger will be displayed in the console window as well
- *   This is the behavior of the extension when runnning it.
+ *   This is the behavior of the extension when running it.
  *   When running tests on CI, we might not want this behavior, as it'll pollute the
  *      test output with logging (as mentioned this is optional).
  *   Messages logged using our logger will be prefixed with `Python Extension: ....` for console window.
@@ -53,6 +53,7 @@ function logToFile(logLevel: LogLevel, ...args: any[]) {
  *   To do this we need to monkey patch the console methods.
  *   This is optional (generally done when running tests on CI).
  */
+// tslint:disable-next-line: max-func-body-length
 function initializeConsoleLogger() {
     const logMethods = {
         log: Symbol.for('log'),
@@ -141,7 +142,9 @@ function initializeConsoleLogger() {
     const consoleFormatter = format.printf(({ level, message, label, timestamp }) => {
         // If we're on CI server, no need for the label (prefix)
         // Pascal casing og log level, so log files get highlighted when viewing in VSC and other editors.
-        const prefix = `${level.substring(0, 1).toUpperCase()}${level.substring(1)} ${process.env.TF_BUILD ? '' : label}`;
+        const prefix = `${level.substring(0, 1).toUpperCase()}${level.substring(1)} ${
+            process.env.TF_BUILD ? '' : label
+        }`;
         return `${prefix.trim()} ${timestamp}: ${message}`;
     });
     const consoleFormat = format.combine(
@@ -173,7 +176,9 @@ function initializeFileLogger() {
         }),
         fileFormatter
     );
-    const logFilePath = path.isAbsolute(process.env.VSC_PYTHON_LOG_FILE) ? process.env.VSC_PYTHON_LOG_FILE : path.join(EXTENSION_ROOT_DIR, process.env.VSC_PYTHON_LOG_FILE);
+    const logFilePath = path.isAbsolute(process.env.VSC_PYTHON_LOG_FILE)
+        ? process.env.VSC_PYTHON_LOG_FILE
+        : path.join(EXTENSION_ROOT_DIR, process.env.VSC_PYTHON_LOG_FILE);
     const logFileSink = new transports.File({
         format: fileFormat,
         filename: logFilePath,
@@ -285,7 +290,11 @@ function trace(message: string, options: LogOptions = LogOptions.None, logLevel?
             // tslint:disable-next-line:no-any
             function writeToLog(elapsedTime: number, returnValue?: any, ex?: Error) {
                 const messagesToLog = [message];
-                messagesToLog.push(`Class name = ${className}, completed in ${elapsedTime}ms`);
+                messagesToLog.push(
+                    `Class name = ${className}, completed in ${elapsedTime}ms, has a ${
+                        returnValue ? 'truthy' : 'falsy'
+                    } return value`
+                );
                 if ((options && LogOptions.Arguments) === LogOptions.Arguments) {
                     messagesToLog.push(argsToLogString(args));
                 }

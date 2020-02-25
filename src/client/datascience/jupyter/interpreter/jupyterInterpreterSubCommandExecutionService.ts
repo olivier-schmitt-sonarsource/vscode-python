@@ -15,12 +15,17 @@ import { DataScience } from '../../../common/utils/localize';
 import { noop } from '../../../common/utils/misc';
 import { EXTENSION_ROOT_DIR } from '../../../constants';
 import { IInterpreterService, PythonInterpreter } from '../../../interpreter/contracts';
-import { JUPYTER_OUTPUT_CHANNEL, PythonDaemonModule } from '../../constants';
+import { sendTelemetryEvent } from '../../../telemetry';
+import { JUPYTER_OUTPUT_CHANNEL, PythonDaemonModule, Telemetry } from '../../constants';
 import { IJupyterInterpreterDependencyManager, IJupyterSubCommandExecutionService } from '../../types';
 import { JupyterServerInfo } from '../jupyterConnection';
 import { JupyterInstallError } from '../jupyterInstallError';
 import { JupyterKernelSpec, parseKernelSpecs } from '../kernels/jupyterKernelSpec';
-import { getMessageForLibrariesNotInstalled, JupyterInterpreterDependencyResponse, JupyterInterpreterDependencyService } from './jupyterInterpreterDependencyService';
+import {
+    getMessageForLibrariesNotInstalled,
+    JupyterInterpreterDependencyResponse,
+    JupyterInterpreterDependencyService
+} from './jupyterInterpreterDependencyService';
 import { JupyterInterpreterService } from './jupyterInterpreterService';
 
 /**
@@ -31,11 +36,13 @@ import { JupyterInterpreterService } from './jupyterInterpreterService';
  * @implements {IJupyterSubCommandExecutionService}
  */
 @injectable()
-export class JupyterInterpreterSubCommandExecutionService implements IJupyterSubCommandExecutionService, IJupyterInterpreterDependencyManager {
+export class JupyterInterpreterSubCommandExecutionService
+    implements IJupyterSubCommandExecutionService, IJupyterInterpreterDependencyManager {
     constructor(
         @inject(JupyterInterpreterService) private readonly jupyterInterpreter: JupyterInterpreterService,
         @inject(IInterpreterService) private readonly interpreterService: IInterpreterService,
-        @inject(JupyterInterpreterDependencyService) private readonly jupyterDependencyService: JupyterInterpreterDependencyService,
+        @inject(JupyterInterpreterDependencyService)
+        private readonly jupyterDependencyService: JupyterInterpreterDependencyService,
         @inject(IFileSystem) private readonly fs: IFileSystem,
         @inject(IPythonExecutionFactory) private readonly pythonExecutionFactory: IPythonExecutionFactory,
         @inject(IOutputChannel) @named(JUPYTER_OUTPUT_CHANNEL) private readonly jupyterOutputChannel: IOutputChannel,
@@ -76,30 +83,47 @@ export class JupyterInterpreterSubCommandExecutionService implements IJupyterSub
                 return DataScience.selectJupyterInterpreter();
             }
         }
-        const productsNotInstalled = await this.jupyterDependencyService.getDependenciesNotInstalled(interpreter, token);
+        const productsNotInstalled = await this.jupyterDependencyService.getDependenciesNotInstalled(
+            interpreter,
+            token
+        );
         if (productsNotInstalled.length === 0) {
             return '';
         }
 
         if (productsNotInstalled.length === 1 && productsNotInstalled[0] === Product.kernelspec) {
-            return DataScience.jupyterKernelSpecModuleNotFound();
+            return DataScience.jupyterKernelSpecModuleNotFound().format(interpreter.path);
         }
 
-        return getMessageForLibrariesNotInstalled(productsNotInstalled);
+        return getMessageForLibrariesNotInstalled(productsNotInstalled, interpreter.displayName);
     }
     public async getSelectedInterpreter(token?: CancellationToken): Promise<PythonInterpreter | undefined> {
         return this.jupyterInterpreter.getSelectedInterpreter(token);
     }
-    public async startNotebook(notebookArgs: string[], options: SpawnOptions): Promise<ObservableExecutionResult<string>> {
+    public async startNotebook(
+        notebookArgs: string[],
+        options: SpawnOptions
+    ): Promise<ObservableExecutionResult<string>> {
         const interpreter = await this.getSelectedInterpreterAndThrowIfNotAvailable(options.token);
-        this.jupyterOutputChannel.appendLine(DataScience.startingJupyterLogMessage().format(this.pathUtils.getDisplayName(interpreter.path)));
-        const executionService = await this.pythonExecutionFactory.createDaemon({ daemonModule: PythonDaemonModule, pythonPath: interpreter.path });
+        this.jupyterOutputChannel.appendLine(
+            DataScience.startingJupyterLogMessage().format(
+                this.pathUtils.getDisplayName(interpreter.path),
+                notebookArgs.join(' ')
+            )
+        );
+        const executionService = await this.pythonExecutionFactory.createDaemon({
+            daemonModule: PythonDaemonModule,
+            pythonPath: interpreter.path
+        });
         return executionService.execModuleObservable('jupyter', ['notebook'].concat(notebookArgs), options);
     }
 
     public async getRunningJupyterServers(token?: CancellationToken): Promise<JupyterServerInfo[] | undefined> {
         const interpreter = await this.getSelectedInterpreterAndThrowIfNotAvailable(token);
-        const daemon = await this.pythonExecutionFactory.createDaemon({ daemonModule: PythonDaemonModule, pythonPath: interpreter.path });
+        const daemon = await this.pythonExecutionFactory.createDaemon({
+            daemonModule: PythonDaemonModule,
+            pythonPath: interpreter.path
+        });
 
         // We have a small python file here that we will execute to get the server info from all running Jupyter instances
         const newOptions: SpawnOptions = { mergeStdOutErr: true, token: token };
@@ -122,26 +146,42 @@ export class JupyterInterpreterSubCommandExecutionService implements IJupyterSub
             throw new Error(DataScience.jupyterNbConvertNotSupported());
         }
 
-        const daemon = await this.pythonExecutionFactory.createDaemon({ daemonModule: PythonDaemonModule, pythonPath: interpreter.path });
+        const daemon = await this.pythonExecutionFactory.createDaemon({
+            daemonModule: PythonDaemonModule,
+            pythonPath: interpreter.path
+        });
         // Wait for the nbconvert to finish
-        const args = template ? [file, '--to', 'python', '--stdout', '--template', template] : [file, '--to', 'python', '--stdout'];
+        const args = template
+            ? [file, '--to', 'python', '--stdout', '--template', template]
+            : [file, '--to', 'python', '--stdout'];
         // Ignore stderr, as nbconvert writes conversion result to stderr.
         // stdout contains the generated python code.
-        return daemon.execModule('jupyter', ['nbconvert'].concat(args), { throwOnStdErr: false, encoding: 'utf8', token }).then(output => output.stdout);
+        return daemon
+            .execModule('jupyter', ['nbconvert'].concat(args), { throwOnStdErr: false, encoding: 'utf8', token })
+            .then(output => output.stdout);
     }
     public async openNotebook(notebookFile: string): Promise<void> {
         const interpreter = await this.getSelectedInterpreterAndThrowIfNotAvailable();
         // Do  not use the daemon for this, its a waste resources. The user will manage the lifecycle of this process.
-        const executionService = await this.pythonExecutionFactory.createActivatedEnvironment({ interpreter, bypassCondaExecution: true, allowEnvironmentFetchExceptions: true });
+        const executionService = await this.pythonExecutionFactory.createActivatedEnvironment({
+            interpreter,
+            bypassCondaExecution: true,
+            allowEnvironmentFetchExceptions: true
+        });
         const args: string[] = [`--NotebookApp.file_to_run=${notebookFile}`];
 
         // Don't wait for the exec to finish and don't dispose. It's up to the user to kill the process
-        executionService.execModule('jupyter', ['notebook'].concat(args), { throwOnStdErr: false, encoding: 'utf8' }).ignoreErrors();
+        executionService
+            .execModule('jupyter', ['notebook'].concat(args), { throwOnStdErr: false, encoding: 'utf8' })
+            .ignoreErrors();
     }
 
     public async getKernelSpecs(token?: CancellationToken): Promise<JupyterKernelSpec[]> {
         const interpreter = await this.getSelectedInterpreterAndThrowIfNotAvailable(token);
-        const daemon = await this.pythonExecutionFactory.createDaemon({ daemonModule: PythonDaemonModule, pythonPath: interpreter.path });
+        const daemon = await this.pythonExecutionFactory.createDaemon({
+            daemonModule: PythonDaemonModule,
+            pythonPath: interpreter.path
+        });
         if (Cancellation.isCanceled(token)) {
             return [];
         }
@@ -153,19 +193,26 @@ export class JupyterInterpreterSubCommandExecutionService implements IJupyterSub
                 .execModule('jupyter', ['kernelspec', 'list', '--json'], spawnOptions)
                 .then(output => output.stdout)
                 .catch(daemonEx => {
+                    sendTelemetryEvent(Telemetry.KernelSpecNotFound);
                     traceError('Failed to list kernels from daemon', daemonEx);
                     return '';
                 });
             // Possible we cannot import ipykernel for some reason. (use as backup option).
             const stdoutFromFileExecPromise = daemon
-                .exec([path.join(EXTENSION_ROOT_DIR, 'pythonFiles', 'datascience', 'getJupyterKernels.py')], spawnOptions)
+                .exec(
+                    [path.join(EXTENSION_ROOT_DIR, 'pythonFiles', 'datascience', 'getJupyterKernels.py')],
+                    spawnOptions
+                )
                 .then(output => output.stdout)
                 .catch(fileEx => {
                     traceError('Failed to list kernels from getJupyterKernels.py', fileEx);
                     return '';
                 });
 
-            const [stdoutFromDaemon, stdoutFromFileExec] = await Promise.all([stdoutFromDaemonPromise, stdoutFromFileExecPromise]);
+            const [stdoutFromDaemon, stdoutFromFileExec] = await Promise.all([
+                stdoutFromDaemonPromise,
+                stdoutFromFileExecPromise
+            ]);
 
             return parseKernelSpecs(stdoutFromDaemon || stdoutFromFileExec, this.fs, token).catch(parserError => {
                 traceError('Failed to parse kernelspecs', parserError);

@@ -4,7 +4,13 @@
 import * as monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
 import { IServerState } from '../../../datascience-ui/interactive-common/mainState';
 import { CssMessages, IGetCssRequest, IGetCssResponse, IGetMonacoThemeRequest } from '../messages';
-import { ICell, IInteractiveWindowInfo, IJupyterVariable, IJupyterVariablesRequest, IJupyterVariablesResponse } from '../types';
+import {
+    ICell,
+    IInteractiveWindowInfo,
+    IJupyterVariable,
+    IJupyterVariablesRequest,
+    IJupyterVariablesResponse
+} from '../types';
 
 export enum InteractiveWindowMessages {
     StartCell = 'start_cell',
@@ -70,7 +76,7 @@ export enum InteractiveWindowMessages {
     LoadAllCells = 'load_all_cells',
     LoadAllCellsComplete = 'load_all_cells_complete',
     ScrollToCell = 'scroll_to_cell',
-    ReExecuteCell = 'reexecute_cell',
+    ReExecuteCells = 'reexecute_cells',
     NotebookIdentity = 'identity',
     NotebookDirty = 'dirty',
     NotebookClean = 'clean',
@@ -86,7 +92,8 @@ export enum InteractiveWindowMessages {
     ClearAllOutputs = 'clear_all_outputs',
     SelectKernel = 'select_kernel',
     UpdateKernel = 'update_kernel',
-    SelectJupyterServer = 'select_jupyter_server'
+    SelectJupyterServer = 'select_jupyter_server',
+    OpenSettings = 'open_settings'
 }
 
 export enum NativeCommandType {
@@ -140,7 +147,8 @@ export enum SysInfoReason {
     Start,
     Restart,
     Interrupt,
-    New
+    New,
+    Connect
 }
 
 export interface IAddedSysInfo {
@@ -168,6 +176,10 @@ export interface IRemoteReexecuteCode extends IExecuteInfo {
 export interface ISubmitNewCell {
     code: string;
     id: string;
+}
+
+export interface IReExecuteCells {
+    entries: { cell: ICell; code: string }[];
 }
 
 export interface IProvideCompletionItemsRequest {
@@ -302,6 +314,7 @@ export class IInteractiveWindowMapping {
     public [InteractiveWindowMessages.RestartKernel]: never | undefined;
     public [InteractiveWindowMessages.SelectKernel]: IServerState | undefined;
     public [InteractiveWindowMessages.SelectJupyterServer]: never | undefined;
+    public [InteractiveWindowMessages.OpenSettings]: string | undefined;
     public [InteractiveWindowMessages.Export]: ICell[];
     public [InteractiveWindowMessages.GetAllCells]: ICell;
     public [InteractiveWindowMessages.ReturnAllCells]: ICell[];
@@ -359,7 +372,7 @@ export class IInteractiveWindowMapping {
     public [InteractiveWindowMessages.LoadAllCells]: ILoadAllCells;
     public [InteractiveWindowMessages.LoadAllCellsComplete]: ILoadAllCells;
     public [InteractiveWindowMessages.ScrollToCell]: IScrollToCell;
-    public [InteractiveWindowMessages.ReExecuteCell]: ISubmitNewCell;
+    public [InteractiveWindowMessages.ReExecuteCells]: IReExecuteCells;
     public [InteractiveWindowMessages.NotebookIdentity]: INotebookIdentity;
     public [InteractiveWindowMessages.NotebookDirty]: never | undefined;
     public [InteractiveWindowMessages.NotebookClean]: never | undefined;

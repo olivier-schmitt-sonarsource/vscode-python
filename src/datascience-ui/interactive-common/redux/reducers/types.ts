@@ -3,7 +3,10 @@
 'use strict';
 import * as monacoEditor from 'monaco-editor/esm/vs/editor/editor.api';
 
-import { IShowDataViewer, NativeCommandType } from '../../../../client/datascience/interactive-common/interactiveWindowTypes';
+import {
+    IShowDataViewer,
+    NativeCommandType
+} from '../../../../client/datascience/interactive-common/interactiveWindowTypes';
 import { ActionWithPayload, ReducerArg } from '../../../react-common/reduxUtils';
 import { CursorPos, IMainState } from '../../mainState';
 
@@ -54,6 +57,7 @@ export enum CommonActionType {
     LINK_CLICK = 'action.link_click',
     MOVE_CELL_DOWN = 'action.move_cell_down',
     MOVE_CELL_UP = 'action.move_cell_up',
+    OPEN_SETTINGS = 'open_settings',
     REDO = 'action.redo',
     REFRESH_VARIABLES = 'action.refresh_variables',
     RESTART_KERNEL = 'action.restart_kernel_action',

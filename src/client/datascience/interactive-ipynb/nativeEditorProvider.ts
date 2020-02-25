@@ -8,7 +8,13 @@ import { Event, EventEmitter, TextDocument, TextEditor, Uri } from 'vscode';
 import { ICommandManager, IDocumentManager, IWorkspaceService } from '../../common/application/types';
 import { JUPYTER_LANGUAGE } from '../../common/constants';
 import { IFileSystem } from '../../common/platform/types';
-import { IAsyncDisposable, IAsyncDisposableRegistry, IConfigurationService, IDisposableRegistry } from '../../common/types';
+import {
+    IAsyncDisposable,
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    IDisposableRegistry,
+    Resource
+} from '../../common/types';
 import * as localize from '../../common/utils/localize';
 import { IServiceContainer } from '../../ioc/types';
 import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
@@ -52,7 +58,9 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
             findFilesPromise.then(r => (this.notebookCount += r.length));
         }
 
-        this.disposables.push(this.documentManager.onDidChangeActiveTextEditor(this.onDidChangeActiveTextEditorHandler.bind(this)));
+        this.disposables.push(
+            this.documentManager.onDidChangeActiveTextEditor(this.onDidChangeActiveTextEditorHandler.bind(this))
+        );
 
         // Since we may have activated after a document was opened, also run open document for all documents.
         // This needs to be async though. Iterating over all of these in the .ctor is crashing the extension
@@ -129,8 +137,8 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
         }
     }
 
-    public async getNotebookOptions(): Promise<INotebookServerOptions> {
-        const settings = this.configuration.getSettings();
+    public async getNotebookOptions(resource: Resource): Promise<INotebookServerOptions> {
+        const settings = this.configuration.getSettings(resource);
         let serverURI: string | undefined = settings.datascience.jupyterServerURI;
         const useDefaultConfig: boolean | undefined = settings.datascience.useDefaultConfigForJupyter;
 
@@ -209,7 +217,9 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
         let number = 1;
         const dir = this.workspace.rootPath;
         if (dir) {
-            const existing = await this.fileSystem.search(path.join(dir, `${localize.DataScience.untitledNotebookFileName()}-*.ipynb`));
+            const existing = await this.fileSystem.search(
+                path.join(dir, `${localize.DataScience.untitledNotebookFileName()}-*.ipynb`)
+            );
 
             // Sort by number
             existing.sort();
@@ -229,16 +239,22 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
         return result;
     }
 
-    private openNotebookAndCloseEditor = async (document: TextDocument, closeDocumentBeforeOpeningNotebook: boolean) => {
+    private openNotebookAndCloseEditor = async (
+        document: TextDocument,
+        closeDocumentBeforeOpeningNotebook: boolean
+    ) => {
         // See if this is an ipynb file
-        if (this.isNotebook(document) && this.configuration.getSettings().datascience.useNotebookEditor) {
+        if (this.isNotebook(document) && this.configuration.getSettings(document.uri).datascience.useNotebookEditor) {
             const closeActiveEditorCommand = 'workbench.action.closeActiveEditor';
             try {
                 const contents = document.getText();
                 const uri = document.uri;
 
                 if (closeDocumentBeforeOpeningNotebook) {
-                    if (!this.documentManager.activeTextEditor || this.documentManager.activeTextEditor.document !== document) {
+                    if (
+                        !this.documentManager.activeTextEditor ||
+                        this.documentManager.activeTextEditor.document !== document
+                    ) {
                         await this.documentManager.showTextDocument(document);
                     }
                     await this.cmdManager.executeCommand(closeActiveEditorCommand);
@@ -282,7 +298,9 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
         // Possible we have a git diff view (with two editors git and file scheme), and we open the file view
         // on the side (different view column).
         const gitSchemeEditor = this.documentManager.visibleTextEditors.find(
-            editorUri => editorUri.document.uri.scheme === 'git' && this.fileSystem.arePathsSame(editorUri.document.uri.fsPath, editor.document.uri.fsPath)
+            editorUri =>
+                editorUri.document.uri.scheme === 'git' &&
+                this.fileSystem.arePathsSame(editorUri.document.uri.fsPath, editor.document.uri.fsPath)
         );
 
         if (!gitSchemeEditor) {
@@ -307,6 +325,10 @@ export class NativeEditorProvider implements INotebookEditorProvider, IAsyncDisp
         // Only support file uris (we don't want to automatically open any other ipynb file from another resource as a notebook).
         // E.g. when opening a document for comparison, the scheme is `git`, in live share the scheme is `vsls`.
         const validUriScheme = document.uri.scheme === 'file' || document.uri.scheme === 'vsls';
-        return validUriScheme && (document.languageId === JUPYTER_LANGUAGE || path.extname(document.fileName).toLocaleLowerCase() === '.ipynb');
+        return (
+            validUriScheme &&
+            (document.languageId === JUPYTER_LANGUAGE ||
+                path.extname(document.fileName).toLocaleLowerCase() === '.ipynb')
+        );
     }
 }

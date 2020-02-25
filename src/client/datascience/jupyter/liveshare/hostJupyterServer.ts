@@ -11,13 +11,27 @@ import * as vsls from 'vsls/vscode';
 import { nbformat } from '@jupyterlab/coreutils';
 import { IApplicationShell, ILiveShareApi, IWorkspaceService } from '../../../common/application/types';
 import { traceInfo } from '../../../common/logger';
-import { IAsyncDisposableRegistry, IConfigurationService, IDisposableRegistry } from '../../../common/types';
-import * as localize from '../../../common/utils/localize';
-
 import { IFileSystem } from '../../../common/platform/types';
+import {
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    IDisposableRegistry,
+    IOutputChannel,
+    Resource
+} from '../../../common/types';
+import * as localize from '../../../common/utils/localize';
+import { IInterpreterService } from '../../../interpreter/contracts';
 import { IServiceContainer } from '../../../ioc/types';
 import { Identifiers, LiveShare, LiveShareCommands, RegExpValues } from '../../constants';
-import { IDataScience, IJupyterSession, IJupyterSessionManager, IJupyterSessionManagerFactory, INotebook, INotebookServer, INotebookServerLaunchInfo } from '../../types';
+import {
+    IDataScience,
+    IJupyterSession,
+    IJupyterSessionManager,
+    IJupyterSessionManagerFactory,
+    INotebook,
+    INotebookServer,
+    INotebookServerLaunchInfo
+} from '../../types';
 import { JupyterServerBase } from '../jupyterServer';
 import { KernelSelector } from '../kernels/kernelSelector';
 import { HostJupyterNotebook } from './hostJupyterNotebook';
@@ -27,7 +41,8 @@ import { IRoleBasedObject } from './roleBasedFactory';
 // tslint:disable-next-line: no-require-imports
 // tslint:disable:no-any
 
-export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBase, LiveShare.JupyterServerSharedService) implements IRoleBasedObject, INotebookServer {
+export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBase, LiveShare.JupyterServerSharedService)
+    implements IRoleBasedObject, INotebookServer {
     private disposed = false;
     private portToForward = 0;
     private sharedPort: vscode.Disposable | undefined;
@@ -42,9 +57,19 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         serviceContainer: IServiceContainer,
         private appService: IApplicationShell,
         private fs: IFileSystem,
-        private readonly kernelSelector: KernelSelector
+        private readonly kernelSelector: KernelSelector,
+        private readonly interpreterService: IInterpreterService,
+        outputChannel: IOutputChannel
     ) {
-        super(liveShare, asyncRegistry, disposableRegistry, configService, sessionManager, serviceContainer);
+        super(
+            liveShare,
+            asyncRegistry,
+            disposableRegistry,
+            configService,
+            sessionManager,
+            serviceContainer,
+            outputChannel
+        );
     }
 
     public async dispose(): Promise<void> {
@@ -76,15 +101,27 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
             // Attach event handlers to different requests
             if (service) {
                 // Requests return arrays
-                service.onRequest(LiveShareCommands.syncRequest, (_args: any[], _cancellation: CancellationToken) => this.onSync());
-                service.onRequest(LiveShareCommands.disposeServer, (_args: any[], _cancellation: CancellationToken) => this.dispose());
-                service.onRequest(LiveShareCommands.createNotebook, async (args: any[], cancellation: CancellationToken) => {
-                    const uri = vscode.Uri.parse(args[0]);
-                    const resource = uri.scheme && uri.scheme !== Identifiers.InteractiveWindowIdentityScheme ? this.finishedApi!.convertSharedUriToLocal(uri) : uri;
-                    // Don't return the notebook. We don't want it to be serialized. We just want its live share server to be started.
-                    const notebook = (await this.createNotebook(resource, undefined, cancellation)) as HostJupyterNotebook;
-                    await notebook.onAttach(api);
-                });
+                service.onRequest(LiveShareCommands.syncRequest, (_args: any[], _cancellation: CancellationToken) =>
+                    this.onSync()
+                );
+                service.onRequest(LiveShareCommands.disposeServer, (_args: any[], _cancellation: CancellationToken) =>
+                    this.dispose()
+                );
+                service.onRequest(
+                    LiveShareCommands.createNotebook,
+                    async (args: any[], cancellation: CancellationToken) => {
+                        const resource = this.parseUri(args[0]);
+                        const identity = this.parseUri(args[1]);
+                        // Don't return the notebook. We don't want it to be serialized. We just want its live share server to be started.
+                        const notebook = (await this.createNotebook(
+                            resource,
+                            identity!,
+                            undefined,
+                            cancellation
+                        )) as HostJupyterNotebook;
+                        await notebook.onAttach(api);
+                    }
+                );
 
                 // See if we need to forward the port
                 await this.attemptToForwardPort(api, this.portToForward);
@@ -127,7 +164,8 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
     }
 
     protected async createNotebookInstance(
-        resource: vscode.Uri,
+        resource: Resource,
+        identity: vscode.Uri,
         sessionManager: IJupyterSessionManager,
         possibleSession: IJupyterSession | undefined,
         disposableRegistry: IDisposableRegistry,
@@ -137,7 +175,7 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         cancelToken?: CancellationToken
     ): Promise<INotebook> {
         // See if already exists.
-        const existing = await this.getNotebook(resource);
+        const existing = await this.getNotebook(identity);
         if (existing) {
             // Dispose the possible session as we don't need it
             if (possibleSession) {
@@ -148,39 +186,24 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
             return existing;
         }
 
-        // Otherwise create a new notebook.
+        // Compute launch information from the resource and the notebook metadata
+        const { info, changedKernel } = await this.computeLaunchInfo(
+            resource,
+            sessionManager,
+            notebookMetadata,
+            cancelToken
+        );
 
-        // First we need our launch information so we can start a new session (that's what our notebook is really)
-        let launchInfo = await this.waitForConnect();
-        if (!launchInfo) {
-            throw this.getDisposedError();
+        // If we switched kernels, try switching the possible session
+        if (changedKernel && possibleSession && info.kernelSpec) {
+            await possibleSession.changeKernel(
+                info.kernelSpec,
+                this.configService.getSettings(resource).datascience.jupyterLaunchTimeout
+            );
         }
-        // Create a copy of launch info, cuz we're modifying it here.
-        // This launch info contains the server connection info (that could be shared across other nbs).
-        // However the kernel info is different. The kernel info is stored as a  property of this, hence create a separate instance for each nb.
-        launchInfo = {
-            ...launchInfo
-        };
 
-        // Find a kernel that can be used.
-        // Do this only if kernel information has been provided in the metadata, else use the default.
-        let defaultKernelInfoToUse = launchInfo.kernelSpec;
-        if (notebookMetadata?.kernelspec) {
-            const kernelInfo = await (launchInfo.connectionInfo.localLaunch
-                ? this.kernelSelector.getKernelForLocalConnection(sessionManager, notebookMetadata, false, cancelToken)
-                : this.kernelSelector.getKernelForRemoteConnection(sessionManager, notebookMetadata, cancelToken));
-
-            const kernelInfoToUse = kernelInfo?.kernelSpec || kernelInfo?.kernelModel;
-            if (kernelInfoToUse) {
-                defaultKernelInfoToUse = kernelInfoToUse;
-            }
-            if (possibleSession && kernelInfoToUse) {
-                await possibleSession.changeKernel(kernelInfoToUse, this.configService.getSettings().datascience.jupyterLaunchTimeout);
-            }
-            launchInfo.kernelSpec = defaultKernelInfoToUse;
-        }
         // Start a session (or use the existing one)
-        const session = possibleSession || (await sessionManager.startNew(defaultKernelInfoToUse, cancelToken));
+        const session = possibleSession || (await sessionManager.startNew(info.kernelSpec, cancelToken));
         traceInfo(`Started session ${this.id}`);
 
         if (session) {
@@ -191,9 +214,10 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
                 configService,
                 disposableRegistry,
                 this,
-                launchInfo,
+                info,
                 serviceContainer,
                 resource,
+                identity,
                 this.getDisposedError.bind(this),
                 this.workspaceService,
                 this.appService,
@@ -211,7 +235,7 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
             traceInfo(`Finished connecting ${this.id}`);
 
             // Save the notebook
-            this.setNotebook(resource, notebook);
+            this.setNotebook(identity, notebook);
 
             // Return the result.
             return notebook;
@@ -220,10 +244,73 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         throw this.getDisposedError();
     }
 
+    private async computeLaunchInfo(
+        resource: Resource,
+        sessionManager: IJupyterSessionManager,
+        notebookMetadata?: nbformat.INotebookMetadata,
+        cancelToken?: CancellationToken
+    ): Promise<{ info: INotebookServerLaunchInfo; changedKernel: boolean }> {
+        // First we need our launch information so we can start a new session (that's what our notebook is really)
+        let launchInfo = await this.waitForConnect();
+        if (!launchInfo) {
+            throw this.getDisposedError();
+        }
+        // Create a copy of launch info, cuz we're modifying it here.
+        // This launch info contains the server connection info (that could be shared across other nbs).
+        // However the kernel info is different. The kernel info is stored as a  property of this, hence create a separate instance for each nb.
+        launchInfo = {
+            ...launchInfo
+        };
+
+        // Determine the interpreter for our resource. If different, we need a different kernel.
+        const resourceInterpreter = await this.interpreterService.getActiveInterpreter(resource);
+
+        // Find a kernel that can be used.
+        // Do this only if kernel information has been provided in the metadata, or the resource's interpreter is different.
+        let changedKernel = false;
+        if (notebookMetadata?.kernelspec || resourceInterpreter?.displayName !== launchInfo.interpreter?.displayName) {
+            const kernelInfo = await (launchInfo.connectionInfo.localLaunch
+                ? this.kernelSelector.getKernelForLocalConnection(
+                    resource,
+                    sessionManager,
+                    notebookMetadata,
+                    false,
+                    cancelToken
+                )
+                : this.kernelSelector.getKernelForRemoteConnection(
+                    resource,
+                    sessionManager,
+                    notebookMetadata,
+                    cancelToken
+                ));
+
+            const kernelInfoToUse = kernelInfo?.kernelSpec || kernelInfo?.kernelModel;
+            if (kernelInfoToUse) {
+                launchInfo.kernelSpec = kernelInfoToUse;
+                changedKernel = true;
+            }
+        }
+
+        return { info: launchInfo, changedKernel };
+    }
+
+    private parseUri(uri: string | undefined): Resource {
+        const parsed = uri ? vscode.Uri.parse(uri) : undefined;
+        return parsed &&
+            parsed.scheme &&
+            parsed.scheme !== Identifiers.InteractiveWindowIdentityScheme &&
+            parsed.scheme === 'vsls'
+            ? this.finishedApi!.convertSharedUriToLocal(parsed)
+            : parsed;
+    }
+
     private async attemptToForwardPort(api: vsls.LiveShare | null | undefined, port: number): Promise<void> {
         if (port !== 0 && api && api.session && api.session.role === vsls.Role.Host) {
             this.portToForward = 0;
-            this.sharedPort = await api.shareServer({ port, displayName: localize.DataScience.liveShareHostFormat().format(os.hostname()) });
+            this.sharedPort = await api.shareServer({
+                port,
+                displayName: localize.DataScience.liveShareHostFormat().format(os.hostname())
+            });
         } else {
             this.portToForward = port;
         }

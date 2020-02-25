@@ -5,7 +5,12 @@
 import * as assert from 'assert';
 import * as TypeMoq from 'typemoq';
 import { IApplicationShell, ICommandManager } from '../../../client/common/application/types';
-import { IConfigurationService, IDataScienceSettings, IDisposableRegistry, IPythonSettings } from '../../../client/common/types';
+import {
+    IConfigurationService,
+    IDataScienceSettings,
+    IDisposableRegistry,
+    IPythonSettings
+} from '../../../client/common/types';
 import { GatherProvider } from '../../../client/datascience/gather/gather';
 import { GatherLogger } from '../../../client/datascience/gather/gatherLogger';
 import { ICell as IVscCell } from '../../../client/datascience/types';
@@ -133,8 +138,15 @@ suite('DataScience code gathering unit tests', () => {
     dataScienceSettings.setup(d => d.defaultCellMarker).returns(() => '# %%');
     pythonSettings.setup(p => p.datascience).returns(() => dataScienceSettings.object);
     configurationService.setup(c => c.getSettings(TypeMoq.It.isAny())).returns(() => pythonSettings.object);
-    appShell.setup(a => a.showInformationMessage(TypeMoq.It.isAny(), TypeMoq.It.isAny())).returns(() => Promise.resolve(''));
-    const gatherProvider = new GatherProvider(configurationService.object, appShell.object, disposableRegistry.object, commandManager.object);
+    appShell
+        .setup(a => a.showInformationMessage(TypeMoq.It.isAny(), TypeMoq.It.isAny()))
+        .returns(() => Promise.resolve(''));
+    const gatherProvider = new GatherProvider(
+        configurationService.object,
+        appShell.object,
+        disposableRegistry.object,
+        commandManager.object
+    );
     const gatherLogger = new GatherLogger(gatherProvider, configurationService.object);
 
     test('Logs a cell execution', async () => {

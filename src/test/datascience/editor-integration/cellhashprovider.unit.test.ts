@@ -10,7 +10,10 @@ import { IFileSystem } from '../../../client/common/platform/types';
 import { IConfigurationService, IDataScienceSettings, IPythonSettings } from '../../../client/common/types';
 import { CellHashLogger } from '../../../client/datascience/editor-integration/cellhashLogger';
 import { CellHashProvider } from '../../../client/datascience/editor-integration/cellhashprovider';
-import { InteractiveWindowMessages, SysInfoReason } from '../../../client/datascience/interactive-common/interactiveWindowTypes';
+import {
+    InteractiveWindowMessages,
+    SysInfoReason
+} from '../../../client/datascience/interactive-common/interactiveWindowTypes';
 import { CellState, ICell, ICellHashListener, IFileHashes } from '../../../client/datascience/types';
 import { MockDocumentManager } from '../mockDocumentManager';
 
@@ -45,7 +48,13 @@ suite('CellHashProvider Unit Tests', () => {
         debugService.setup(d => d.activeDebugSession).returns(() => undefined);
         fileSystem.setup(d => d.arePathsSame(TypeMoq.It.isAnyString(), TypeMoq.It.isAnyString())).returns(() => true);
         documentManager = new MockDocumentManager();
-        hashProvider = new CellHashProvider(documentManager, configurationService.object, debugService.object, fileSystem.object, [hashListener]);
+        hashProvider = new CellHashProvider(
+            documentManager,
+            configurationService.object,
+            debugService.object,
+            fileSystem.object,
+            [hashListener]
+        );
         hashLogger = new CellHashLogger(hashProvider);
     });
 

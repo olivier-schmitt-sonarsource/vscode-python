@@ -8,15 +8,33 @@ import * as detectIndent from 'detect-indent';
 import { inject, injectable, multiInject, named } from 'inversify';
 import * as path from 'path';
 import * as uuid from 'uuid/v4';
-import { Event, EventEmitter, Memento, TextEditor, Uri, ViewColumn } from 'vscode';
+import { CancellationToken, CancellationTokenSource, Event, EventEmitter, Memento, Uri, ViewColumn } from 'vscode';
 
 import { concatMultilineStringInput, splitMultilineString } from '../../../datascience-ui/common';
 import { createCodeCell, createErrorOutput } from '../../../datascience-ui/common/cellFactory';
-import { IApplicationShell, ICommandManager, IDocumentManager, ILiveShareApi, IWebPanelProvider, IWorkspaceService } from '../../common/application/types';
+import {
+    IApplicationShell,
+    ICommandManager,
+    IDocumentManager,
+    ILiveShareApi,
+    IWebPanelProvider,
+    IWorkspaceService
+} from '../../common/application/types';
 import { ContextKey } from '../../common/contextKey';
-import { traceError } from '../../common/logger';
+import { traceError, traceInfo } from '../../common/logger';
 import { IFileSystem, TemporaryFile } from '../../common/platform/types';
-import { GLOBAL_MEMENTO, IConfigurationService, ICryptoUtils, IDisposableRegistry, IExperimentsManager, IExtensionContext, IMemento, WORKSPACE_MEMENTO } from '../../common/types';
+import {
+    GLOBAL_MEMENTO,
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    ICryptoUtils,
+    IDisposableRegistry,
+    IExperimentsManager,
+    IExtensionContext,
+    IMemento,
+    Resource,
+    WORKSPACE_MEMENTO
+} from '../../common/types';
 import { createDeferred, Deferred } from '../../common/utils/async';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
@@ -24,13 +42,21 @@ import { StopWatch } from '../../common/utils/stopWatch';
 import { EXTENSION_ROOT_DIR } from '../../constants';
 import { IInterpreterService } from '../../interpreter/contracts';
 import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
-import { EditorContexts, Identifiers, NativeKeyboardCommandTelemetryLookup, NativeMouseCommandTelemetryLookup, Telemetry } from '../constants';
+import {
+    EditorContexts,
+    Identifiers,
+    KnownNotebookLanguages,
+    NativeKeyboardCommandTelemetryLookup,
+    NativeMouseCommandTelemetryLookup,
+    Telemetry
+} from '../constants';
 import { InteractiveBase } from '../interactive-common/interactiveBase';
 import {
     IEditCell,
     IInsertCell,
     INativeCommand,
     InteractiveWindowMessages,
+    IReExecuteCells,
     IRemoveCell,
     ISaveAll,
     ISubmitNewCell,
@@ -78,6 +104,52 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
     public get onDidChangeViewState(): Event<void> {
         return this._onDidChangeViewState.event;
     }
+
+    public get visible(): boolean {
+        return this.viewState.visible;
+    }
+
+    public get active(): boolean {
+        return this.viewState.active;
+    }
+
+    public get file(): Uri {
+        return this._file;
+    }
+
+    public get isUntitled(): boolean {
+        const baseName = path.basename(this.file.fsPath);
+        return baseName.includes(localize.DataScience.untitledNotebookFileName());
+    }
+
+    public get cells(): ICell[] {
+        return this.visibleCells;
+    }
+
+    public get closed(): Event<INotebookEditor> {
+        return this.closedEvent.event;
+    }
+
+    public get executed(): Event<INotebookEditor> {
+        return this.executedEvent.event;
+    }
+
+    public get modified(): Event<INotebookEditor> {
+        return this.modifiedEvent.event;
+    }
+
+    public get saved(): Event<INotebookEditor> {
+        return this.savedEvent.event;
+    }
+
+    public get metadataUpdated(): Event<INotebookEditor> {
+        return this.metadataUpdatedEvent.event;
+    }
+
+    public get isDirty(): boolean {
+        return this._dirty;
+    }
+    private sentExecuteCellTelemetry: boolean = false;
     private _onDidChangeViewState = new EventEmitter<void>();
     private closedEvent: EventEmitter<INotebookEditor> = new EventEmitter<INotebookEditor>();
     private executedEvent: EventEmitter<INotebookEditor> = new EventEmitter<INotebookEditor>();
@@ -95,6 +167,8 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
     private indentAmount: string = ' ';
     private notebookJson: Partial<nbformat.INotebookContent> = {};
     private debouncedWriteToStorage = debounce(this.writeToStorage.bind(this), 250);
+    private executeCancelTokens = new Set<CancellationTokenSource>();
+    private _disposed = false;
 
     constructor(
         @multiInject(IInteractiveWindowListener) listeners: IInteractiveWindowListener[],
@@ -124,7 +198,8 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         @inject(ICryptoUtils) private crypto: ICryptoUtils,
         @inject(IExtensionContext) private context: IExtensionContext,
         @inject(ProgressReporter) progressReporter: ProgressReporter,
-        @inject(IExperimentsManager) experimentsManager: IExperimentsManager
+        @inject(IExperimentsManager) experimentsManager: IExperimentsManager,
+        @inject(IAsyncDisposableRegistry) asyncRegistry: IAsyncDisposableRegistry
     ) {
         super(
             progressReporter,
@@ -151,40 +226,25 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
             commandManager,
             globalStorage,
             nativeEditorDir,
-            [path.join(nativeEditorDir, 'monaco.bundle.js'), path.join(nativeEditorDir, 'commons.initial.bundle.js'), path.join(nativeEditorDir, 'nativeEditor.js')],
+            [
+                path.join(nativeEditorDir, 'monaco.bundle.js'),
+                path.join(nativeEditorDir, 'commons.initial.bundle.js'),
+                path.join(nativeEditorDir, 'nativeEditor.js')
+            ],
             localize.DataScience.nativeEditorTitle(),
             ViewColumn.Active,
             experimentsManager
         );
-    }
-
-    public get visible(): boolean {
-        return this.viewState.visible;
-    }
-
-    public get active(): boolean {
-        return this.viewState.active;
-    }
-
-    public get file(): Uri {
-        return this._file;
-    }
-
-    public get isUntitled(): boolean {
-        const baseName = path.basename(this.file.fsPath);
-        return baseName.includes(localize.DataScience.untitledNotebookFileName());
+        asyncRegistry.push(this);
     }
     public dispose(): Promise<void> {
+        this._disposed = true;
         super.dispose();
         return this.close();
     }
 
     public getContents(): Promise<string> {
         return this.generateNotebookContent(this.visibleCells);
-    }
-
-    public get cells(): ICell[] {
-        return this.visibleCells;
     }
 
     public async load(contents: string, file: Uri): Promise<void> {
@@ -221,35 +281,11 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         }
     }
 
-    public get closed(): Event<INotebookEditor> {
-        return this.closedEvent.event;
-    }
-
-    public get executed(): Event<INotebookEditor> {
-        return this.executedEvent.event;
-    }
-
-    public get modified(): Event<INotebookEditor> {
-        return this.modifiedEvent.event;
-    }
-
-    public get saved(): Event<INotebookEditor> {
-        return this.savedEvent.event;
-    }
-
-    public get metadataUpdated(): Event<INotebookEditor> {
-        return this.metadataUpdatedEvent.event;
-    }
-
-    public get isDirty(): boolean {
-        return this._dirty;
-    }
-
     // tslint:disable-next-line: no-any
     public onMessage(message: string, payload: any) {
         super.onMessage(message, payload);
         switch (message) {
-            case InteractiveWindowMessages.ReExecuteCell:
+            case InteractiveWindowMessages.ReExecuteCells:
                 this.executedEvent.fire(this);
                 break;
 
@@ -294,13 +330,21 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
                 this.handleMessage(message, payload, this.clearAllOutputs);
                 break;
 
+            case InteractiveWindowMessages.RestartKernel:
+                this.interruptExecution();
+                break;
+
+            case InteractiveWindowMessages.Interrupt:
+                this.interruptExecution();
+                break;
+
             default:
                 break;
         }
     }
 
     public async getNotebookOptions(): Promise<INotebookServerOptions> {
-        const options = await this.ipynbProvider.getNotebookOptions();
+        const options = await this.ipynbProvider.getNotebookOptions(await this.getOwningResource());
         await this.contentsLoadedPromise.promise;
         const metadata = this.notebookJson.metadata;
         return {
@@ -328,7 +372,17 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         return this.setDirty();
     }
 
-    protected addSysInfo(_reason: SysInfoReason): Promise<void> {
+    public getOwningResource(): Promise<Resource> {
+        // Resource to use for loading and our identity are the same.
+        return this.getNotebookIdentity();
+    }
+
+    protected addSysInfo(reason: SysInfoReason): Promise<void> {
+        // We need to send a message when restarting
+        if (reason === SysInfoReason.Restart || reason === SysInfoReason.New) {
+            this.postMessage(InteractiveWindowMessages.RestartKernel).ignoreErrors();
+        }
+
         // These are not supported.
         return Promise.resolve();
     }
@@ -357,9 +411,21 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         }
     }
 
-    protected submitCode(code: string, file: string, line: number, id?: string, editor?: TextEditor, debug?: boolean): Promise<boolean> {
+    protected submitCode(
+        code: string,
+        file: string,
+        line: number,
+        id?: string,
+        data?: nbformat.ICodeCell | nbformat.IRawCell | nbformat.IMarkdownCell,
+        debug?: boolean,
+        cancelToken?: CancellationToken
+    ): Promise<boolean> {
+        const stopWatch = new StopWatch();
+        const submitCodePromise = super
+            .submitCode(code, file, line, id, data, debug, cancelToken)
+            .finally(() => this.sendPerceivedCellExecute(stopWatch));
         // When code is executed, update the version number in the metadata.
-        return super.submitCode(code, file, line, id, editor, debug).then(value => {
+        return submitCodePromise.then(value => {
             this.updateVersionInfoInNotebook()
                 .then(() => {
                     this.metadataUpdatedEvent.fire(this);
@@ -399,51 +465,44 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         }
     }
 
-    @captureTelemetry(Telemetry.ExecuteNativeCell, undefined, false)
+    @captureTelemetry(Telemetry.ExecuteNativeCell, undefined, true)
     // tslint:disable-next-line:no-any
-    protected async reexecuteCell(info: ISubmitNewCell): Promise<void> {
+    protected async reexecuteCells(info: IReExecuteCells): Promise<void> {
+        const tokenSource = new CancellationTokenSource();
+        this.executeCancelTokens.add(tokenSource);
+        let finishedPos = info && info.entries ? info.entries.length : -1;
         try {
-            // If there's any payload, it has the code and the id
-            if (info && info.code && info.id) {
-                // Clear the result if we've run before
-                await this.clearResult(info.id);
-
-                // Send to ourselves.
-                await this.submitCode(info.code, Identifiers.EmptyFileName, 0, info.id);
-
-                // Activate the other side, and send as if came from a file
-                await this.ipynbProvider.show(this.file);
-                this.shareMessage(InteractiveWindowMessages.RemoteReexecuteCode, {
-                    code: info.code,
-                    file: Identifiers.EmptyFileName,
-                    line: 0,
-                    id: info.id,
-                    originator: this.id,
-                    debug: false
-                });
+            if (info && info.entries) {
+                for (let i = 0; i < info.entries.length && !tokenSource.token.isCancellationRequested; i += 1) {
+                    await this.reexecuteCell(info.entries[i], tokenSource.token);
+                    if (!tokenSource.token.isCancellationRequested) {
+                        finishedPos = i;
+                    }
+                }
             }
         } catch (exc) {
-            // Make this error our cell output
-            this.sendCellsToWebView([
-                {
-                    data: createCodeCell([info.code], [createErrorOutput(exc)]),
-                    id: info.id,
-                    file: Identifiers.EmptyFileName,
-                    line: 0,
-                    state: CellState.error
-                }
-            ]);
-
             // Tell the other side we restarted the kernel. This will stop all executions
             this.postMessage(InteractiveWindowMessages.RestartKernel).ignoreErrors();
 
             // Handle an error
             await this.errorHandler.handleError(exc);
+        } finally {
+            this.executeCancelTokens.delete(tokenSource);
+
+            // Make sure everything is marked as finished or error after the final finished
+            // position
+            if (info && info.entries) {
+                for (let i = finishedPos + 1; i < info.entries.length; i += 1) {
+                    this.finishCell(info.entries[i]);
+                }
+            }
         }
     }
 
     protected async getNotebookIdentity(): Promise<Uri> {
-        await this.loadedPromise.promise;
+        if (this.loadedPromise) {
+            await this.loadedPromise.promise;
+        }
 
         // File should be set now
         return this._file;
@@ -509,6 +568,87 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         // Actually don't close, just let the error bubble out
     }
 
+    private interruptExecution() {
+        this.executeCancelTokens.forEach(t => t.cancel());
+    }
+
+    private finishCell(entry: { cell: ICell; code: string }) {
+        this.sendCellsToWebView([
+            {
+                ...entry.cell,
+                // tslint:disable-next-line: no-any
+                data: { ...entry.cell.data, source: entry.code } as any, // nyc compiler issue
+                state: CellState.finished
+            }
+        ]);
+    }
+
+    private async reexecuteCell(entry: { cell: ICell; code: string }, cancelToken: CancellationToken): Promise<void> {
+        try {
+            // If there's any payload, it has the code and the id
+            if (entry.code && entry.cell.id && entry.cell.data.cell_type !== 'messages') {
+                traceInfo(`Executing cell ${entry.cell.id}`);
+
+                // Clear the result if we've run before
+                await this.clearResult(entry.cell.id);
+
+                // Send to ourselves.
+                await this.submitCode(
+                    entry.code,
+                    Identifiers.EmptyFileName,
+                    0,
+                    entry.cell.id,
+                    entry.cell.data,
+                    false,
+                    cancelToken
+                );
+
+                if (!cancelToken.isCancellationRequested) {
+                    // Activate the other side, and send as if came from a file
+                    await this.ipynbProvider.show(this.file);
+                    this.shareMessage(InteractiveWindowMessages.RemoteReexecuteCode, {
+                        code: entry.code,
+                        file: Identifiers.EmptyFileName,
+                        line: 0,
+                        id: entry.cell.id,
+                        originator: this.id,
+                        debug: false
+                    });
+                }
+            }
+        } catch (exc) {
+            // Make this error our cell output
+            this.sendCellsToWebView([
+                {
+                    // tslint:disable-next-line: no-any
+                    data: { ...entry.cell.data, outputs: [createErrorOutput(exc)] } as any, // nyc compiler issue
+                    id: entry.cell.id,
+                    file: Identifiers.EmptyFileName,
+                    line: 0,
+                    state: CellState.error
+                }
+            ]);
+
+            throw exc;
+        } finally {
+            if (entry && entry.cell.id) {
+                traceInfo(`Finished executing cell ${entry.cell.id}`);
+            }
+        }
+    }
+
+    private sendPerceivedCellExecute(runningStopWatch?: StopWatch) {
+        if (runningStopWatch) {
+            const props = { notebook: true };
+            if (!this.sentExecuteCellTelemetry) {
+                this.sentExecuteCellTelemetry = true;
+                sendTelemetryEvent(Telemetry.ExecuteCellPerceivedCold, runningStopWatch.elapsedTime, props);
+            } else {
+                sendTelemetryEvent(Telemetry.ExecuteCellPerceivedWarm, runningStopWatch.elapsedTime, props);
+            }
+        }
+    }
+
     /**
      * Update the Python Version number in the notebook data.
      *
@@ -523,7 +663,12 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
             const interpreter = notebook.getMatchingInterpreter();
             const kernelSpec = notebook.getKernelSpec();
 
-            if (interpreter && interpreter.version && this.notebookJson.metadata && this.notebookJson.metadata.language_info) {
+            if (
+                interpreter &&
+                interpreter.version &&
+                this.notebookJson.metadata &&
+                this.notebookJson.metadata.language_info
+            ) {
                 this.notebookJson.metadata.language_info.version = interpreter.version.raw;
             }
 
@@ -589,11 +734,16 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         // Then save the contents. We'll stick our cells back into this format when we save
         if (json) {
             this.notebookJson = json;
+
+            // Log language or kernel telemetry
+            this.sendLanguageTelemetry(this.notebookJson);
         }
         this.contentsLoadedPromise.resolve();
 
         // Extract cells from the json
-        const cells = contents ? (json.cells as (nbformat.ICodeCell | nbformat.IRawCell | nbformat.IMarkdownCell)[]) : [];
+        const cells = contents
+            ? (json.cells as (nbformat.ICodeCell | nbformat.IRawCell | nbformat.IMarkdownCell)[])
+            : [];
 
         // Then parse the cells
         return this.loadCells(
@@ -608,6 +758,27 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
             }),
             forceDirty
         );
+    }
+
+    private sendLanguageTelemetry(notebookJson: Partial<nbformat.INotebookContent>) {
+        try {
+            // See if we have a language
+            let language = '';
+            if (notebookJson.metadata?.language_info?.name) {
+                language = notebookJson.metadata?.language_info?.name;
+            } else if (notebookJson.metadata?.kernelspec?.language) {
+                language = notebookJson.metadata?.kernelspec?.language.toString();
+            }
+            if (language && !KnownNotebookLanguages.includes(language.toLowerCase())) {
+                language = 'unknown';
+            }
+            if (language) {
+                sendTelemetryEvent(Telemetry.NotebookLanguage, undefined, { language });
+            }
+        } catch {
+            // If this fails, doesn't really matter
+            noop();
+        }
     }
 
     private async loadCells(cells: ICell[], forceDirty: boolean): Promise<void> {
@@ -785,11 +956,13 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
 
     private async writeToStorage(filePath: string, contents?: string): Promise<void> {
         try {
-            if (contents) {
-                await this.fileSystem.createDirectory(path.dirname(filePath));
-                return this.fileSystem.writeFile(filePath, contents);
-            } else {
-                return this.fileSystem.deleteFile(filePath);
+            if (!this._disposed) {
+                if (contents) {
+                    await this.fileSystem.createDirectory(path.dirname(filePath));
+                    return this.fileSystem.writeFile(filePath, contents);
+                } else {
+                    return this.fileSystem.deleteFile(filePath);
+                }
             }
         } catch (exc) {
             traceError(`Error writing storage for ${filePath}: `, exc);
@@ -808,7 +981,7 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
 
             // Restart our kernel so that execution counts are reset
             let oldAsk: boolean | undefined = false;
-            const settings = this.configuration.getSettings();
+            const settings = this.configuration.getSettings(await this.getOwningResource());
             if (settings && settings.datascience) {
                 oldAsk = settings.datascience.askForKernelRestart;
                 settings.datascience.askForKernelRestart = false;
@@ -904,8 +1077,13 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         const message2 = localize.DataScience.dirtyNotebookMessage2();
         const yes = localize.DataScience.dirtyNotebookYes();
         const no = localize.DataScience.dirtyNotebookNo();
-        // tslint:disable-next-line: messages-must-be-localized
-        const result = await this.applicationShell.showInformationMessage(`${message1}\n${message2}`, { modal: true }, yes, no);
+        const result = await this.applicationShell.showInformationMessage(
+            // tslint:disable-next-line: messages-must-be-localized
+            `${message1}\n${message2}`,
+            { modal: true },
+            yes,
+            no
+        );
         switch (result) {
             case yes:
                 return AskForSaveResult.Yes;
@@ -922,7 +1100,11 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
         // Update storage if not untitled. Don't wait for results.
         if (!this.isUntitled) {
             this.generateNotebookContent(this.visibleCells)
-                .then(c => this.storeContents(c).catch(ex => traceError('Failed to generate notebook content to store in state', ex)))
+                .then(c =>
+                    this.storeContents(c).catch(ex =>
+                        traceError('Failed to generate notebook content to store in state', ex)
+                    )
+                )
                 .ignoreErrors();
         }
 
@@ -959,7 +1141,9 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
             tempFile = await this.fileSystem.createTemporaryFile('.ipynb');
 
             // Translate the cells into a notebook
-            await this.fileSystem.writeFile(tempFile.filePath, await this.generateNotebookContent(cells), { encoding: 'utf-8' });
+            await this.fileSystem.writeFile(tempFile.filePath, await this.generateNotebookContent(cells), {
+                encoding: 'utf-8'
+            });
 
             // Import this file and show it
             const contents = await this.importer.importFromFile(tempFile.filePath, this.file.fsPath);
@@ -1039,7 +1223,8 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
                 isDirty = true;
 
                 const defaultUri =
-                    Array.isArray(this.workspaceService.workspaceFolders) && this.workspaceService.workspaceFolders.length > 0
+                    Array.isArray(this.workspaceService.workspaceFolders) &&
+                    this.workspaceService.workspaceFolders.length > 0
                         ? this.workspaceService.workspaceFolders[0].uri
                         : undefined;
                 fileToSaveTo = await this.applicationShell.showSaveDialog({
@@ -1051,7 +1236,10 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
 
             if (fileToSaveTo && isDirty) {
                 // Write out our visible cells
-                await this.fileSystem.writeFile(fileToSaveTo.fsPath, await this.generateNotebookContent(this.visibleCells));
+                await this.fileSystem.writeFile(
+                    fileToSaveTo.fsPath,
+                    await this.generateNotebookContent(this.visibleCells)
+                );
 
                 // Update our file name and dirty state
                 this._file = fileToSaveTo;
@@ -1071,7 +1259,10 @@ export class NativeEditor extends InteractiveBase implements INotebookEditor {
     }
 
     private logNativeCommand(args: INativeCommand) {
-        const telemetryEvent = args.source === 'mouse' ? NativeMouseCommandTelemetryLookup[args.command] : NativeKeyboardCommandTelemetryLookup[args.command];
+        const telemetryEvent =
+            args.source === 'mouse'
+                ? NativeMouseCommandTelemetryLookup[args.command]
+                : NativeKeyboardCommandTelemetryLookup[args.command];
         sendTelemetryEvent(telemetryEvent);
     }
 

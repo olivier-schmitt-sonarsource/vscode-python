@@ -31,9 +31,39 @@ suite('Data Science - JupyterConnection', () => {
     const childProc = new events.EventEmitter();
     const notebookDir = 'someDir';
     const dummyServerInfos: JupyterServerInfo[] = [
-        { base_url: '1', hostname: '111', notebook_dir: 'a', password: true, pid: 1, port: 1243, secure: false, token: 'wow', url: 'url' },
-        { base_url: '2', hostname: '22', notebook_dir: notebookDir, password: false, pid: 13, port: 4444, secure: true, token: 'wow2', url: 'url2' },
-        { base_url: '22', hostname: '33', notebook_dir: 'c', password: false, pid: 15, port: 555, secure: true, token: 'wow3', url: 'url23' }
+        {
+            base_url: '1',
+            hostname: '111',
+            notebook_dir: 'a',
+            password: true,
+            pid: 1,
+            port: 1243,
+            secure: false,
+            token: 'wow',
+            url: 'url'
+        },
+        {
+            base_url: '2',
+            hostname: '22',
+            notebook_dir: notebookDir,
+            password: false,
+            pid: 13,
+            port: 4444,
+            secure: true,
+            token: 'wow2',
+            url: 'url2'
+        },
+        {
+            base_url: '22',
+            hostname: '33',
+            notebook_dir: 'c',
+            password: false,
+            pid: 15,
+            port: 555,
+            secure: true,
+            token: 'wow3',
+            url: 'url23'
+        }
     ];
     const expectedServerInfo = dummyServerInfos[1];
 
@@ -53,14 +83,20 @@ suite('Data Science - JupyterConnection', () => {
         getServerInfoStub.resolves(dummyServerInfos);
         when(fs.arePathsSame(anything(), anything())).thenCall((path1, path2) => path1 === path2);
         when(settings.datascience).thenReturn(dsSettings);
-        when(configService.getSettings()).thenReturn(instance(settings));
+        when(configService.getSettings(anything())).thenReturn(instance(settings));
         when(serviceContainer.get<IFileSystem>(IFileSystem)).thenReturn(instance(fs));
         when(serviceContainer.get<IConfigurationService>(IConfigurationService)).thenReturn(instance(configService));
     });
 
     function createConnectionWaiter(cancelToken?: CancellationToken) {
-        // tslint:disable-next-line: no-any
-        return new JupyterConnectionWaiter(launchResult, notebookDir, getServerInfoStub as any, instance(serviceContainer), cancelToken);
+        return new JupyterConnectionWaiter(
+            launchResult,
+            notebookDir,
+            // tslint:disable-next-line: no-any
+            getServerInfoStub as any,
+            instance(serviceContainer),
+            cancelToken
+        );
     }
     test('Successfully gets connection info', async () => {
         dsSettings.jupyterLaunchTimeout = 10_000;

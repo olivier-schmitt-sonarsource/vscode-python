@@ -8,7 +8,15 @@ import * as sinon from 'sinon';
 import { anything, instance, mock, verify, when } from 'ts-mockito';
 import { Matcher } from 'ts-mockito/lib/matcher/type/Matcher';
 import * as typemoq from 'typemoq';
-import { ConfigurationChangeEvent, ConfigurationTarget, Disposable, EventEmitter, TextEditor, Uri, WorkspaceConfiguration } from 'vscode';
+import {
+    ConfigurationChangeEvent,
+    ConfigurationTarget,
+    Disposable,
+    EventEmitter,
+    TextEditor,
+    Uri,
+    WorkspaceConfiguration
+} from 'vscode';
 
 import { ApplicationShell } from '../../../client/common/application/applicationShell';
 import { CommandManager } from '../../../client/common/application/commandManager';
@@ -25,12 +33,19 @@ import {
 import { WebPanel } from '../../../client/common/application/webPanels/webPanel';
 import { WebPanelProvider } from '../../../client/common/application/webPanels/webPanelProvider';
 import { WorkspaceService } from '../../../client/common/application/workspace';
+import { AsyncDisposableRegistry } from '../../../client/common/asyncDisposableRegistry';
 import { PythonSettings } from '../../../client/common/configSettings';
 import { ConfigurationService } from '../../../client/common/configuration/service';
 import { CryptoUtils } from '../../../client/common/crypto';
 import { ExperimentsManager } from '../../../client/common/experiments';
 import { IFileSystem } from '../../../client/common/platform/types';
-import { IConfigurationService, ICryptoUtils, IExperimentsManager, IExtensionContext } from '../../../client/common/types';
+import {
+    IAsyncDisposableRegistry,
+    IConfigurationService,
+    ICryptoUtils,
+    IExperimentsManager,
+    IExtensionContext
+} from '../../../client/common/types';
 import { createDeferred } from '../../../client/common/utils/async';
 import { EXTENSION_ROOT_DIR } from '../../../client/constants';
 import { CodeCssGenerator } from '../../../client/datascience/codeCssGenerator';
@@ -87,10 +102,22 @@ class MockWorkspaceConfiguration implements WorkspaceConfiguration {
     }
     public inspect<T>(
         _section: string
-    ): { key: string; defaultValue?: T | undefined; globalValue?: T | undefined; workspaceValue?: T | undefined; workspaceFolderValue?: T | undefined } | undefined {
+    ):
+        | {
+              key: string;
+              defaultValue?: T | undefined;
+              globalValue?: T | undefined;
+              workspaceValue?: T | undefined;
+              workspaceFolderValue?: T | undefined;
+          }
+        | undefined {
         return;
     }
-    public update(section: string, value: any, _configurationTarget?: boolean | ConfigurationTarget | undefined): Promise<void> {
+    public update(
+        section: string,
+        value: any,
+        _configurationTarget?: boolean | ConfigurationTarget | undefined
+    ): Promise<void> {
         this.map.set(section, value);
         return Promise.resolve();
     }
@@ -129,6 +156,7 @@ suite('Data Science - Native Editor', () => {
     let testIndex = 0;
     let reporter: ProgressReporter;
     let experimentsManager: IExperimentsManager;
+    let asyncRegistry: IAsyncDisposableRegistry;
     const baseFile = `{
  "cells": [
   {
@@ -256,11 +284,13 @@ suite('Data Science - Native Editor', () => {
         const settings = mock(PythonSettings);
         const settingsChangedEvent = new EventEmitter<void>();
 
-        context.setup(c => c.globalStoragePath).returns(() => path.join(EXTENSION_ROOT_DIR, 'src', 'test', 'datascience', 'WorkspaceDir'));
+        context
+            .setup(c => c.globalStoragePath)
+            .returns(() => path.join(EXTENSION_ROOT_DIR, 'src', 'test', 'datascience', 'WorkspaceDir'));
 
         when(experimentsManager.inExperiment(anything())).thenReturn(false);
         when(settings.onDidChange).thenReturn(settingsChangedEvent.event);
-        when(configService.getSettings()).thenReturn(instance(settings));
+        when(configService.getSettings(anything())).thenReturn(instance(settings));
 
         const configChangeEvent = new EventEmitter<ConfigurationChangeEvent>();
         when(workspace.onDidChangeConfiguration).thenReturn(configChangeEvent.event);
@@ -314,6 +344,7 @@ suite('Data Science - Native Editor', () => {
             .returns(_a1 => {
                 return Promise.resolve(lastWriteFileValue);
             });
+        asyncRegistry = mock(AsyncDisposableRegistry);
     });
 
     teardown(() => {
@@ -350,7 +381,8 @@ suite('Data Science - Native Editor', () => {
             instance(crypto),
             context.object,
             instance(reporter),
-            instance(experimentsManager)
+            instance(experimentsManager),
+            instance(asyncRegistry)
         );
     }
 
@@ -368,7 +400,10 @@ suite('Data Science - Native Editor', () => {
         const editor = createEditor();
         await editor.load(baseFile, Uri.parse('file:///foo.ipynb'));
         expect(await editor.getContents()).to.be.equal(baseFile);
-        editor.onMessage(InteractiveWindowMessages.SwapCells, { firstCellId: 'NotebookImport#0', secondCellId: 'NotebookImport#1' });
+        editor.onMessage(InteractiveWindowMessages.SwapCells, {
+            firstCellId: 'NotebookImport#0',
+            secondCellId: 'NotebookImport#1'
+        });
         expect(editor.cells).to.be.lengthOf(3);
         expect(editor.isDirty).to.be.equal(true, 'Editor should be dirty');
         expect(editor.cells[0].id).to.be.match(/NotebookImport#1/);

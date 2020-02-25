@@ -6,19 +6,20 @@ import '../../common/extensions';
 import { inject, injectable } from 'inversify';
 import * as path from 'path';
 
+import { IWorkspaceService } from '../../common/application/types';
 import { PYTHON_WARNINGS } from '../../common/constants';
 import { LogOptions, traceDecorators, traceError, traceVerbose } from '../../common/logger';
 import { IPlatformService } from '../../common/platform/types';
 import { IProcessServiceFactory } from '../../common/process/types';
 import { ITerminalHelper, TerminalShellType } from '../../common/terminal/types';
 import { ICurrentProcess, IDisposable, Resource } from '../../common/types';
-import { cacheResourceSpecificInterpreterData, clearCachedResourceSpecificIngterpreterData } from '../../common/utils/decorators';
+import { InMemoryCache } from '../../common/utils/cacheUtils';
 import { OSType } from '../../common/utils/platform';
 import { IEnvironmentVariablesProvider } from '../../common/variables/types';
 import { EXTENSION_ROOT_DIR } from '../../constants';
 import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
 import { EventName } from '../../telemetry/constants';
-import { PythonInterpreter } from '../contracts';
+import { IInterpreterService, PythonInterpreter } from '../contracts';
 import { IEnvironmentActivationService } from './types';
 
 const getEnvironmentPrefix = 'e8b39361-0157-4923-80e1-22d70d46dee6';
@@ -36,14 +37,27 @@ const defaultShells = {
 @injectable()
 export class EnvironmentActivationService implements IEnvironmentActivationService, IDisposable {
     private readonly disposables: IDisposable[] = [];
+    private readonly activatedEnvVariablesCache = new Map<string, InMemoryCache<NodeJS.ProcessEnv | undefined>>();
     constructor(
         @inject(ITerminalHelper) private readonly helper: ITerminalHelper,
         @inject(IPlatformService) private readonly platform: IPlatformService,
         @inject(IProcessServiceFactory) private processServiceFactory: IProcessServiceFactory,
         @inject(ICurrentProcess) private currentProcess: ICurrentProcess,
+        @inject(IWorkspaceService) private workspace: IWorkspaceService,
+        @inject(IInterpreterService) private interpreterService: IInterpreterService,
         @inject(IEnvironmentVariablesProvider) private readonly envVarsService: IEnvironmentVariablesProvider
     ) {
-        this.envVarsService.onDidEnvironmentVariablesChange(this.onDidEnvironmentVariablesChange, this, this.disposables);
+        this.envVarsService.onDidEnvironmentVariablesChange(
+            () => this.activatedEnvVariablesCache.clear(),
+            this,
+            this.disposables
+        );
+
+        this.interpreterService.onDidChangeInterpreter(
+            () => this.activatedEnvVariablesCache.clear(),
+            this,
+            this.disposables
+        );
     }
 
     public dispose(): void {
@@ -51,15 +65,45 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
     }
     @traceDecorators.verbose('getActivatedEnvironmentVariables', LogOptions.Arguments)
     @captureTelemetry(EventName.PYTHON_INTERPRETER_ACTIVATION_ENVIRONMENT_VARIABLES, { failed: false }, true)
-    @cacheResourceSpecificInterpreterData('ActivatedEnvironmentVariables', cacheDuration)
-    public async getActivatedEnvironmentVariables(resource: Resource, interpreter?: PythonInterpreter, allowExceptions?: boolean): Promise<NodeJS.ProcessEnv | undefined> {
+    public async getActivatedEnvironmentVariables(
+        resource: Resource,
+        interpreter?: PythonInterpreter,
+        allowExceptions?: boolean
+    ): Promise<NodeJS.ProcessEnv | undefined> {
+        // Cache key = resource + interpreter.
+        const workspaceKey = this.workspace.getWorkspaceFolderIdentifier(resource);
+        const interpreterPath = this.platform.isWindows ? interpreter?.path.toLowerCase() : interpreter?.path;
+        const cacheKey = `${workspaceKey}_${interpreterPath}`;
+
+        if (this.activatedEnvVariablesCache.get(cacheKey)?.hasData) {
+            return this.activatedEnvVariablesCache.get(cacheKey)!.data;
+        }
+
+        // Cache only if successful, else keep trying & failing if necessary.
+        const cache = new InMemoryCache<NodeJS.ProcessEnv | undefined>(cacheDuration, '');
+        return this.getActivatedEnvironmentVariablesImpl(resource, interpreter, allowExceptions).then(vars => {
+            cache.data = vars;
+            this.activatedEnvVariablesCache.set(cacheKey, cache);
+            return vars;
+        });
+    }
+
+    public async getActivatedEnvironmentVariablesImpl(
+        resource: Resource,
+        interpreter?: PythonInterpreter,
+        allowExceptions?: boolean
+    ): Promise<NodeJS.ProcessEnv | undefined> {
         const shellInfo = defaultShells[this.platform.osType];
         if (!shellInfo) {
             return;
         }
         let isPossiblyCondaEnv = false;
         try {
-            const activationCommands = await this.helper.getEnvironmentActivationShellCommands(resource, shellInfo.shellType, interpreter);
+            const activationCommands = await this.helper.getEnvironmentActivationShellCommands(
+                resource,
+                shellInfo.shellType,
+                interpreter
+            );
             traceVerbose(`Activation Commands received ${activationCommands} for shell ${shellInfo.shell}`);
             if (!activationCommands || !Array.isArray(activationCommands) || activationCommands.length === 0) {
                 return;
@@ -92,7 +136,12 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
             // See the discussion from hidesoon in this issue: https://github.com/Microsoft/vscode-python/issues/4424
             // His issue is conda never finishing during activate. This is a conda issue, but we
             // should at least tell the user.
-            const result = await processService.shellExec(command, { env, shell: shellInfo.shell, timeout: getEnvironmentTimeout, maxBuffer: 1000 * 1000 });
+            const result = await processService.shellExec(command, {
+                env,
+                shell: shellInfo.shell,
+                timeout: getEnvironmentTimeout,
+                maxBuffer: 1000 * 1000
+            });
             if (result.stderr && result.stderr.length > 0) {
                 throw new Error(`StdErr from ShellExec, ${result.stderr}`);
             }
@@ -107,7 +156,10 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
             return returnedEnv;
         } catch (e) {
             traceError('getActivatedEnvironmentVariables', e);
-            sendTelemetryEvent(EventName.ACTIVATE_ENV_TO_GET_ENV_VARS_FAILED, undefined, { isPossiblyCondaEnv, terminal: shellInfo.shellType });
+            sendTelemetryEvent(EventName.ACTIVATE_ENV_TO_GET_ENV_VARS_FAILED, undefined, {
+                isPossiblyCondaEnv,
+                terminal: shellInfo.shellType
+            });
 
             // Some callers want this to bubble out, others don't
             if (allowExceptions) {
@@ -115,9 +167,7 @@ export class EnvironmentActivationService implements IEnvironmentActivationServi
             }
         }
     }
-    protected onDidEnvironmentVariablesChange(affectedResource: Resource) {
-        clearCachedResourceSpecificIngterpreterData('ActivatedEnvironmentVariables', affectedResource);
-    }
+
     protected fixActivationCommands(commands: string[]): string[] {
         // Replace 'source ' with '. ' as that works in shell exec
         return commands.map(cmd => cmd.replace(/^source\s+/, '. '));

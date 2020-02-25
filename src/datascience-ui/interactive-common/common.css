@@ -39,9 +39,14 @@ body, html {
     max-height: 100%;
     overflow: auto;
 }
+
 #main-panel-footer {
     grid-area: footer;
     overflow: hidden;
+}
+
+#content-panel-div.content-panel-scrollBeyondLastLine {
+    margin-bottom: 100vh;
 }
 
 .hide {

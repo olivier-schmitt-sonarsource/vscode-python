@@ -23,13 +23,25 @@ export function getInteractiveCellResults(
 
 export async function getOrCreateInteractiveWindow(ioc: DataScienceIocContainer): Promise<IInteractiveWindow> {
     const interactiveWindowProvider = ioc.get<IInteractiveWindowProvider>(IInteractiveWindowProvider);
-    const window = (await interactiveWindowProvider.getOrCreateActive()) as InteractiveWindow;
-    await window.show();
-    return window;
+    return (await interactiveWindowProvider.getOrCreateActive()) as InteractiveWindow;
 }
 
-// tslint:disable-next-line:no-any
-export function runMountedTest(name: string, testFunc: (wrapper: ReactWrapper<any, Readonly<{}>, React.Component>) => Promise<void>, getIOC: () => DataScienceIocContainer) {
+export function closeInteractiveWindow(
+    window: IInteractiveWindow,
+    // tslint:disable-next-line: no-any
+    wrapper: ReactWrapper<any, Readonly<{}>, React.Component>
+) {
+    const promise = window.dispose();
+    wrapper.unmount();
+    return promise;
+}
+
+export function runMountedTest(
+    name: string,
+    // tslint:disable-next-line:no-any
+    testFunc: (wrapper: ReactWrapper<any, Readonly<{}>, React.Component>) => Promise<void>,
+    getIOC: () => DataScienceIocContainer
+) {
     test(name, async () => {
         const ioc = getIOC();
         const jupyterExecution = ioc.get<IJupyterExecution>(IJupyterExecution);
@@ -49,7 +61,8 @@ export async function addCode(
     // tslint:disable-next-line: no-any
     wrapper: ReactWrapper<any, Readonly<{}>, React.Component>,
     code: string,
-    expectError: boolean = false
+    expectError: boolean = false,
+    uri: Uri = Uri.file('foo.py')
     // tslint:disable-next-line: no-any
 ): Promise<ReactWrapper<any, Readonly<{}>, React.Component>> {
     // Adding code should cause 5 renders to happen.
@@ -60,7 +73,7 @@ export async function addCode(
     // 5) Status finished
     return getInteractiveCellResults(ioc, wrapper, async () => {
         const history = await getOrCreateInteractiveWindow(ioc);
-        const success = await history.addCode(code, Uri.file('foo.py').fsPath, 2);
+        const success = await history.addCode(code, uri.fsPath, 2);
         if (expectError) {
             assert.equal(success, false, `${code} did not produce an error`);
         }

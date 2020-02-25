@@ -6,7 +6,7 @@
 // tslint:disable: no-any
 
 import { expect } from 'chai';
-import { instance, mock, when } from 'ts-mockito';
+import { anything, instance, mock, when } from 'ts-mockito';
 import * as typemoq from 'typemoq';
 import { EventEmitter, TextDocument, TextEditor, Uri } from 'vscode';
 import { CommandManager } from '../../../client/common/application/commandManager';
@@ -51,7 +51,7 @@ suite('Data Science - Native Editor Provider', () => {
 
     function createNotebookProvider(shouldOpenNotebookEditor: boolean) {
         editor = typemoq.Mock.ofType<INotebookEditor>();
-        when(configService.getSettings()).thenReturn({ datascience: { useNotebookEditor: true } } as any);
+        when(configService.getSettings(anything())).thenReturn({ datascience: { useNotebookEditor: true } } as any);
         when(docManager.onDidChangeActiveTextEditor).thenReturn(changeActiveTextEditorEventEmitter.event);
         when(docManager.visibleTextEditors).thenReturn([]);
         editor.setup(e => e.closed).returns(() => new EventEmitter<INotebookEditor>().event);
@@ -158,7 +158,8 @@ suite('Data Science - Native Editor Provider', () => {
         expect(notebookEditor.editors).to.be.lengthOf(1);
     }
     test('Show the notebook editor when an opening the same ipynb file', async () => openSameIPynbFile(false));
-    test('Show the notebook editor when an opening the same ipynb file (after opening some other random file)', async () => openSameIPynbFile(true));
+    test('Show the notebook editor when an opening the same ipynb file (after opening some other random file)', async () =>
+        openSameIPynbFile(true));
 
     test('Do not open the notebook editor when a txt file is opened', async () => {
         await testAutomaticallyOpeningNotebookEditorWhenOpeningFiles(Uri.file('some text file.txt'), false);

@@ -8,6 +8,7 @@ import { noop } from '../common/utils/misc';
 import { IServiceManager } from '../ioc/types';
 import { Activation } from './activation';
 import { CodeCssGenerator } from './codeCssGenerator';
+import { JupyterCommandLineSelectorCommand } from './commands/commandLineSelector';
 import { CommandRegistry } from './commands/commandRegistry';
 import { KernelSwitcherCommand } from './commands/kernelSwitcher';
 import { JupyterServerSelectorCommand } from './commands/serverSelector';
@@ -36,6 +37,7 @@ import { NativeEditorProvider } from './interactive-ipynb/nativeEditorProvider';
 import { InteractiveWindow } from './interactive-window/interactiveWindow';
 import { InteractiveWindowCommandListener } from './interactive-window/interactiveWindowCommandListener';
 import { InteractiveWindowProvider } from './interactive-window/interactiveWindowProvider';
+import { JupyterCommandLineSelector } from './jupyter/commandLineSelector';
 import { JupyterCommandFactory } from './jupyter/interpreter/jupyterCommand';
 import { JupyterCommandFinder } from './jupyter/interpreter/jupyterCommandFinder';
 import { JupyterCommandInterpreterDependencyService } from './jupyter/interpreter/jupyterCommandInterpreterDependencyService';
@@ -107,11 +109,18 @@ import {
     IThemeFinder
 } from './types';
 
+// tslint:disable-next-line: max-func-body-length
 export function registerTypes(serviceManager: IServiceManager) {
-    serviceManager.addSingleton<IDataScienceCodeLensProvider>(IDataScienceCodeLensProvider, DataScienceCodeLensProvider);
+    serviceManager.addSingleton<IDataScienceCodeLensProvider>(
+        IDataScienceCodeLensProvider,
+        DataScienceCodeLensProvider
+    );
     serviceManager.addSingleton<IDataScience>(IDataScience, DataScience);
     serviceManager.addSingleton<IJupyterExecution>(IJupyterExecution, JupyterExecutionFactory);
-    serviceManager.addSingleton<IDataScienceCommandListener>(IDataScienceCommandListener, InteractiveWindowCommandListener);
+    serviceManager.addSingleton<IDataScienceCommandListener>(
+        IDataScienceCommandListener,
+        InteractiveWindowCommandListener
+    );
     serviceManager.addSingleton<IInteractiveWindowProvider>(IInteractiveWindowProvider, InteractiveWindowProvider);
     serviceManager.add<IInteractiveWindow>(IInteractiveWindow, InteractiveWindow);
     serviceManager.add<INotebookExporter>(INotebookExporter, JupyterExporter);
@@ -120,7 +129,10 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addSingleton<ICodeCssGenerator>(ICodeCssGenerator, CodeCssGenerator);
     serviceManager.addSingleton<IJupyterPasswordConnect>(IJupyterPasswordConnect, JupyterPasswordConnect);
     serviceManager.addSingleton<IStatusProvider>(IStatusProvider, StatusProvider);
-    serviceManager.addSingleton<IJupyterSessionManagerFactory>(IJupyterSessionManagerFactory, JupyterSessionManagerFactory);
+    serviceManager.addSingleton<IJupyterSessionManagerFactory>(
+        IJupyterSessionManagerFactory,
+        JupyterSessionManagerFactory
+    );
     serviceManager.addSingleton<IJupyterVariables>(IJupyterVariables, JupyterVariables);
     serviceManager.add<ICodeWatcher>(ICodeWatcher, CodeWatcher);
     serviceManager.add<IJupyterCommandFactory>(IJupyterCommandFactory, JupyterCommandFactory);
@@ -157,29 +169,66 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addSingleton<KernelSelector>(KernelSelector, KernelSelector);
     serviceManager.addSingleton<KernelSelectionProvider>(KernelSelectionProvider, KernelSelectionProvider);
     serviceManager.addSingleton<CommandRegistry>(CommandRegistry, CommandRegistry);
-    serviceManager.addSingleton<JupyterServerSelectorCommand>(JupyterServerSelectorCommand, JupyterServerSelectorCommand);
+    serviceManager.addSingleton<JupyterServerSelectorCommand>(
+        JupyterServerSelectorCommand,
+        JupyterServerSelectorCommand
+    );
     serviceManager.addSingleton<KernelSwitcherCommand>(KernelSwitcherCommand, KernelSwitcherCommand);
     serviceManager.addSingleton<KernelSwitcher>(KernelSwitcher, KernelSwitcher);
     serviceManager.addSingleton<JupyterServerSelector>(JupyterServerSelector, JupyterServerSelector);
-    serviceManager.addSingleton<JupyterInterpreterStateStore>(JupyterInterpreterStateStore, JupyterInterpreterStateStore);
-    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, JupyterInterpreterSelectionCommand);
-    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, PreWarmActivatedJupyterEnvironmentVariables);
+    serviceManager.addSingleton<JupyterCommandLineSelectorCommand>(
+        JupyterCommandLineSelectorCommand,
+        JupyterCommandLineSelectorCommand
+    );
+    serviceManager.addSingleton<JupyterCommandLineSelector>(JupyterCommandLineSelector, JupyterCommandLineSelector);
+    serviceManager.addSingleton<JupyterInterpreterStateStore>(
+        JupyterInterpreterStateStore,
+        JupyterInterpreterStateStore
+    );
+    serviceManager.addSingleton<IExtensionSingleActivationService>(
+        IExtensionSingleActivationService,
+        JupyterInterpreterSelectionCommand
+    );
+    serviceManager.addSingleton<IExtensionSingleActivationService>(
+        IExtensionSingleActivationService,
+        PreWarmActivatedJupyterEnvironmentVariables
+    );
     serviceManager.addSingleton<JupyterInterpreterSelector>(JupyterInterpreterSelector, JupyterInterpreterSelector);
-    serviceManager.addSingleton<JupyterInterpreterDependencyService>(JupyterInterpreterDependencyService, JupyterInterpreterDependencyService);
+    serviceManager.addSingleton<JupyterInterpreterDependencyService>(
+        JupyterInterpreterDependencyService,
+        JupyterInterpreterDependencyService
+    );
     serviceManager.addSingleton<JupyterInterpreterService>(JupyterInterpreterService, JupyterInterpreterService);
-    serviceManager.addSingleton<JupyterInterpreterOldCacheStateStore>(JupyterInterpreterOldCacheStateStore, JupyterInterpreterOldCacheStateStore);
+    serviceManager.addSingleton<JupyterInterpreterOldCacheStateStore>(
+        JupyterInterpreterOldCacheStateStore,
+        JupyterInterpreterOldCacheStateStore
+    );
     serviceManager.addSingleton<ActiveEditorContextService>(ActiveEditorContextService, ActiveEditorContextService);
     serviceManager.addSingleton<ProgressReporter>(ProgressReporter, ProgressReporter);
     serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, ServerPreload);
 
     // Temporary code, to allow users to revert to the old behavior.
-    const cfg = serviceManager.get<IWorkspaceService>(IWorkspaceService).getConfiguration('python.dataScience', undefined);
+    const cfg = serviceManager
+        .get<IWorkspaceService>(IWorkspaceService)
+        .getConfiguration('python.dataScience', undefined);
     if (cfg.get<boolean>('useOldJupyterServer', false)) {
-        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(IJupyterSubCommandExecutionService, JupyterCommandFinderInterpreterExecutionService);
-        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(IJupyterInterpreterDependencyManager, JupyterCommandInterpreterDependencyService);
+        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(
+            IJupyterSubCommandExecutionService,
+            JupyterCommandFinderInterpreterExecutionService
+        );
+        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(
+            IJupyterInterpreterDependencyManager,
+            JupyterCommandInterpreterDependencyService
+        );
     } else {
-        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(IJupyterSubCommandExecutionService, JupyterInterpreterSubCommandExecutionService);
-        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(IJupyterInterpreterDependencyManager, JupyterInterpreterSubCommandExecutionService);
+        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(
+            IJupyterSubCommandExecutionService,
+            JupyterInterpreterSubCommandExecutionService
+        );
+        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(
+            IJupyterInterpreterDependencyManager,
+            JupyterInterpreterSubCommandExecutionService
+        );
     }
 
     if (cfg.get<boolean>('enableGather', false)) {

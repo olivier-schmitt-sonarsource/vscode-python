@@ -14,6 +14,21 @@ export const JUPYTER_OUTPUT_CHANNEL = 'JUPYTER_OUTPUT_CHANNEL';
 // Python Module to be used when instantiating the Python Daemon.
 export const PythonDaemonModule = 'datascience.jupyter_daemon';
 
+// List of 'language' names that we know about. All should be lower case as that's how we compare.
+export const KnownNotebookLanguages: string[] = [
+    'python',
+    'r',
+    'julia',
+    'c++',
+    'c#',
+    'f#',
+    'scala',
+    'haskell',
+    'bash',
+    'cling',
+    'sas'
+];
+
 export namespace Commands {
     export const RunAllCells = 'python.datascience.runallcells';
     export const RunAllCellsAbove = 'python.datascience.runallcellsabove';
@@ -31,6 +46,7 @@ export namespace Commands {
     export const ImportNotebookFile = 'python.datascience.importnotebookfile';
     export const OpenNotebook = 'python.datascience.opennotebook';
     export const SelectJupyterURI = 'python.datascience.selectjupyteruri';
+    export const SelectJupyterCommandLine = 'python.datascience.selectjupytercommandline';
     export const ExportFileAsNotebook = 'python.datascience.exportfileasnotebook';
     export const ExportFileAndOutputAsNotebook = 'python.datascience.exportfileandoutputasnotebook';
     export const UndoCells = 'python.datascience.undocells';
@@ -100,7 +116,8 @@ export namespace RegExpValues {
     export const KernelSpecOutputRegEx = /^\s*(\S+)\s+(\S+)$/;
     // This next one has to be a string because uglifyJS isn't handling the groups. We use named-js-regexp to parse it
     // instead.
-    export const UrlPatternRegEx = '(?<PREFIX>https?:\\/\\/)((\\(.+\\s+or\\s+(?<IP>.+)\\))|(?<LOCAL>[^\\s]+))(?<REST>:.+)';
+    export const UrlPatternRegEx =
+        '(?<PREFIX>https?:\\/\\/)((\\(.+\\s+or\\s+(?<IP>.+)\\))|(?<LOCAL>[^\\s]+))(?<REST>:.+)';
     export interface IUrlPatternGroupType {
         LOCAL: string | undefined;
         PREFIX: string | undefined;
@@ -151,7 +168,7 @@ export enum Telemetry {
     CollapseAll = 'DATASCIENCE.COLLAPSE_ALL',
     SelectJupyterURI = 'DATASCIENCE.SELECT_JUPYTER_URI',
     SelectLocalJupyterKernel = 'DATASCIENCE.SELECT_LOCAL_JUPYTER_KERNEL',
-    SelectRemoteJupyuterKernel = 'DATASCIENCE.SELECT_REMOTE_JUPYTER_KERNEL',
+    SelectRemoteJupyterKernel = 'DATASCIENCE.SELECT_REMOTE_JUPYTER_KERNEL',
     SetJupyterURIToLocal = 'DATASCIENCE.SET_JUPYTER_URI_LOCAL',
     SetJupyterURIToUserSpecified = 'DATASCIENCE.SET_JUPYTER_URI_USER_SPECIFIED',
     Interrupt = 'DATASCIENCE.INTERRUPT',
@@ -161,6 +178,7 @@ export enum Telemetry {
     SubmitCellThroughInput = 'DATASCIENCE.SUBMITCELLFROMREPL',
     ConnectLocalJupyter = 'DS_INTERNAL.CONNECTLOCALJUPYTER',
     ConnectRemoteJupyter = 'DS_INTERNAL.CONNECTREMOTEJUPYTER',
+    ConnectRemoteJupyterViaLocalHost = 'DS_INTERNAL.CONNECTREMOTEJUPYTER_VIA_LOCALHOST',
     ConnectFailedJupyter = 'DS_INTERNAL.CONNECTFAILEDJUPYTER',
     ConnectRemoteFailedJupyter = 'DS_INTERNAL.CONNECTREMOTEFAILEDJUPYTER',
     StartSessionFailedJupyter = 'DS_INTERNAL.START_SESSION_FAILED_JUPYTER',
@@ -210,6 +228,8 @@ export enum Telemetry {
     ExecuteCell = 'DATASCIENCE.EXECUTE_CELL_TIME',
     ExecuteCellPerceivedCold = 'DS_INTERNAL.EXECUTE_CELL_PERCEIVED_COLD',
     ExecuteCellPerceivedWarm = 'DS_INTERNAL.EXECUTE_CELL_PERCEIVED_WARM',
+    PerceivedJupyterStartupNotebook = 'DS_INTERNAL.PERCEIVED_JUPYTER_STARTUP_NOTEBOOK',
+    StartExecuteNotebookCellPerceivedCold = 'DS_INTERNAL.START_EXECUTE_NOTEBOOK_CELL_PERCEIVED_COLD',
     WebviewStartup = 'DS_INTERNAL.WEBVIEW_STARTUP',
     VariableExplorerFetchTime = 'DS_INTERNAL.VARIABLE_EXPLORER_FETCH_TIME',
     WebviewStyleUpdate = 'DS_INTERNAL.WEBVIEW_STYLE_UPDATE',
@@ -243,7 +263,15 @@ export enum Telemetry {
     OpenedInteractiveWindow = 'DATASCIENCE.OPENED_INTERACTIVE',
     FindKernelForLocalConnection = 'DS_INTERNAL.FIND_KERNEL_FOR_LOCAL_CONNECTION',
     CompletionTimeFromLS = 'DS_INTERNAL.COMPLETION_TIME_FROM_LS',
-    CompletionTimeFromJupyter = 'DS_INTERNAL.COMPLETION_TIME_FROM_JUPYTER'
+    CompletionTimeFromJupyter = 'DS_INTERNAL.COMPLETION_TIME_FROM_JUPYTER',
+    NotebookLanguage = 'DATASCIENCE.NOTEBOOK_LANGUAGE',
+    KernelSpecNotFound = 'DS_INTERNAL.KERNEL_SPEC_NOT_FOUND',
+    KernelRegisterFailed = 'DS_INTERNAL.KERNEL_REGISTER_FAILED',
+    KernelEnumeration = 'DS_INTERNAL.KERNEL_ENUMERATION',
+    JupyterInstallFailed = 'DS_INTERNAL.JUPYTER_INSTALL_FAILED',
+    UserInstalledModule = 'DATASCIENCE.USER_INSTALLED_MODULE',
+    JupyterCommandLineNonDefault = 'DS_INTERNAL.JUPYTER_CUSTOM_COMMAND_LINE',
+    NewFileForInteractiveWindow = 'DS_INTERNAL.NEW_FILE_USED_IN_INTERACTIVE'
 }
 
 export enum NativeKeyboardCommandTelemetry {
@@ -349,7 +377,17 @@ export namespace Identifiers {
 }
 
 export namespace CodeSnippits {
-    export const ChangeDirectory = ['{0}', '{1}', 'import os', 'try:', "\tos.chdir(os.path.join(os.getcwd(), '{2}'))", '\tprint(os.getcwd())', 'except:', '\tpass', ''];
+    export const ChangeDirectory = [
+        '{0}',
+        '{1}',
+        'import os',
+        'try:',
+        "\tos.chdir(os.path.join(os.getcwd(), '{2}'))",
+        '\tprint(os.getcwd())',
+        'except:',
+        '\tpass',
+        ''
+    ];
     export const ChangeDirectoryCommentIdentifier = '# ms-python.python added'; // Not translated so can compare.
     export const ImportIPython = '{0}\nfrom IPython import get_ipython\n\n{1}';
     export const MatplotLibInitSvg = `import matplotlib\n%matplotlib inline\n${Identifiers.MatplotLibDefaultParams} = dict(matplotlib.rcParams)\n%config InlineBackend.figure_formats = {'svg', 'png'}`;

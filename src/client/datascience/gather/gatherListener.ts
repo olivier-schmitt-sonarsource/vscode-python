@@ -12,12 +12,25 @@ import { IServiceContainer } from '../../ioc/types';
 import { generateCellsFromString } from '../cellFactory';
 import { Identifiers } from '../constants';
 import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
-import { ICell, IGatherProvider, IInteractiveWindowListener, IInteractiveWindowProvider, IJupyterExecution, INotebook, INotebookEditorProvider, INotebookExporter } from '../types';
+import {
+    ICell,
+    IGatherProvider,
+    IInteractiveWindowListener,
+    IInteractiveWindowProvider,
+    IJupyterExecution,
+    INotebook,
+    INotebookEditorProvider,
+    INotebookExporter
+} from '../types';
 
 @injectable()
 export class GatherListener implements IInteractiveWindowListener {
     // tslint:disable-next-line: no-any
-    private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{ message: string; payload: any }>();
+    private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{
+        message: string;
+        // tslint:disable-next-line: no-any
+        payload: any;
+    }>();
     private notebookUri: Uri | undefined;
     private gatherProvider: IGatherProvider | undefined;
 
@@ -64,8 +77,12 @@ export class GatherListener implements IInteractiveWindowListener {
         }
     }
 
-    // tslint:disable:no-any
-    private handleMessage<M extends IInteractiveWindowMapping, T extends keyof M>(_message: T, payload: any, handler: (args: M[T]) => void) {
+    private handleMessage<M extends IInteractiveWindowMapping, T extends keyof M>(
+        _message: T,
+        // tslint:disable:no-any
+        payload: any,
+        handler: (args: M[T]) => void
+    ) {
         const args = payload as M[T];
         handler.bind(this)(args);
     }
@@ -86,7 +103,9 @@ export class GatherListener implements IInteractiveWindowListener {
         this.notebookUri = Uri.parse(notebookUri);
 
         // First get the active server
-        const activeServer = await this.jupyterExecution.getServer(await this.interactiveWindowProvider.getNotebookOptions());
+        const activeServer = await this.jupyterExecution.getServer(
+            await this.interactiveWindowProvider.getNotebookOptions(this.notebookUri)
+        );
 
         let nb: INotebook | undefined;
         // If that works, see if there's a matching notebook running
@@ -120,7 +139,9 @@ export class GatherListener implements IInteractiveWindowListener {
                     state: 0,
                     data: createMarkdownCell(
                         localize.DataScience.gatheredNotebookDescriptionInMarkdown().format(
-                            cell.file === Identifiers.EmptyFileName && this.notebookUri ? this.notebookUri.fsPath : cell.file
+                            cell.file === Identifiers.EmptyFileName && this.notebookUri
+                                ? this.notebookUri.fsPath
+                                : cell.file
                         )
                     )
                 }
@@ -138,8 +159,12 @@ export class GatherListener implements IInteractiveWindowListener {
     private async showFile(slicedProgram: string, filename: string) {
         // Don't want to open the gathered code on top of the interactive window
         let viewColumn: ViewColumn | undefined;
-        const fileNameMatch = this.documentManager.visibleTextEditors.filter(textEditor => this.fileSystem.arePathsSame(textEditor.document.fileName, filename));
-        const definedVisibleEditors = this.documentManager.visibleTextEditors.filter(textEditor => textEditor.viewColumn !== undefined);
+        const fileNameMatch = this.documentManager.visibleTextEditors.filter(textEditor =>
+            this.fileSystem.arePathsSame(textEditor.document.fileName, filename)
+        );
+        const definedVisibleEditors = this.documentManager.visibleTextEditors.filter(
+            textEditor => textEditor.viewColumn !== undefined
+        );
         if (this.documentManager.visibleTextEditors.length > 0 && fileNameMatch.length > 0) {
             // Original file is visible
             viewColumn = fileNameMatch[0].viewColumn;
