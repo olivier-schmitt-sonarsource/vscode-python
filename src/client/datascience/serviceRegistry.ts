@@ -1,11 +1,9 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 'use strict';
-import { ConfigurationTarget } from 'vscode';
 import { IExtensionSingleActivationService } from '../activation/types';
 import { IApplicationEnvironment, IWorkspaceService } from '../common/application/types';
 import { UseCustomEditorApi } from '../common/constants';
-import { noop } from '../common/utils/misc';
 import { IServiceManager } from '../ioc/types';
 import { Activation } from './activation';
 import { CodeCssGenerator } from './codeCssGenerator';
@@ -244,21 +242,7 @@ export function registerTypes(serviceManager: IServiceManager) {
         );
     }
 
-    if (cfg.get<boolean>('enableGather', false)) {
-        try {
-            registerGatherTypes(serviceManager);
-        } catch (ex) {
-            cfg.update('enableGather', false, ConfigurationTarget.Global).then(() => {
-                noop();
-            });
-            cfg.update('enableGather', false, ConfigurationTarget.Workspace).then(() => {
-                noop();
-            });
-            cfg.update('enableGather', false, ConfigurationTarget.WorkspaceFolder).then(() => {
-                noop();
-            });
-        }
-    }
+    registerGatherTypes(serviceManager);
 }
 
 export function registerGatherTypes(serviceManager: IServiceManager) {

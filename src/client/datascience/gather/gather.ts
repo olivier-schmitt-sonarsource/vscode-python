@@ -1,4 +1,4 @@
-import * as ppa from '@msrvida/python-program-analysis';
+import * as ppatypes from '@msrvida-python-program-analysis';
 import { inject, injectable } from 'inversify';
 import * as uuid from 'uuid/v4';
 import { IApplicationShell, ICommandManager } from '../../common/application/types';
@@ -15,8 +15,8 @@ import { CellState, ICell as IVscCell, IGatherProvider } from '../types';
  */
 @injectable()
 export class GatherProvider implements IGatherProvider {
-    private _executionSlicer: ppa.ExecutionLogSlicer<ppa.Cell>;
-    private dataflowAnalyzer: ppa.DataflowAnalyzer;
+    private _executionSlicer: ppatypes.ExecutionLogSlicer<ppatypes.Cell> | undefined;
+    private dataflowAnalyzer: ppatypes.DataflowAnalyzer | undefined;
     private _enabled: boolean;
 
     constructor(
@@ -27,27 +27,38 @@ export class GatherProvider implements IGatherProvider {
     ) {
         this._enabled = this.configService.getSettings().datascience.enableGather ? true : false;
 
-        this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
-        this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
+        try {
+            // tslint:disable-next-line: no-require-imports
+            const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
 
-        if (this._enabled) {
-            this.disposables.push(
-                this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
-            );
+            this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
+            this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
+
+            if (this._enabled) {
+                this.disposables.push(
+                    this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
+                );
+            }
+            traceInfo('Gathering tools have been activated');
+        } catch (ex) {
+            traceInfo('Gathering tools could not be activated');
         }
-
-        traceInfo('Gathering tools have been activated');
     }
+
     public logExecution(vscCell: IVscCell): void {
         const gatherCell = convertVscToGatherCell(vscCell);
 
         if (gatherCell) {
-            this._executionSlicer.logExecution(gatherCell);
+            if (this._executionSlicer) {
+                this._executionSlicer.logExecution(gatherCell);
+            }
         }
     }
 
     public async resetLog(): Promise<void> {
-        this._executionSlicer.reset();
+        if (this._executionSlicer) {
+            this._executionSlicer.reset();
+        }
     }
 
     /**
@@ -64,12 +75,16 @@ export class GatherProvider implements IGatherProvider {
             this.configService.getSettings().datascience.defaultCellMarker || Identifiers.DefaultCodeCellMarker;
 
         // Call internal slice method
-        const slice = this._executionSlicer.sliceLatestExecution(gatherCell.persistentId);
-        const program = slice.cellSlices.reduce(concat, '').replace(/#%%/g, defaultCellMarker);
+        if (this._executionSlicer) {
+            const slice = this._executionSlicer.sliceLatestExecution(gatherCell.persistentId);
+            const program = slice.cellSlices.reduce(concat, '').replace(/#%%/g, defaultCellMarker);
 
-        // Add a comment at the top of the file explaining what gather does
-        const descriptor = localize.DataScience.gatheredScriptDescription();
-        return descriptor.concat(program);
+            // Add a comment at the top of the file explaining what gather does
+            const descriptor = localize.DataScience.gatheredScriptDescription();
+            return descriptor.concat(program);
+        } else {
+            return 'Gather not available';
+        }
     }
 
     public get executionSlicer() {
@@ -104,7 +119,7 @@ export class GatherProvider implements IGatherProvider {
 /**
  * Accumulator to concatenate cell slices for a sliced program, preserving cell structures.
  */
-function concat(existingText: string, newText: ppa.CellSlice): string {
+function concat(existingText: string, newText: ppatypes.CellSlice): string {
     // Include our cell marker so that cell slices are preserved
     return `${existingText}#%%\n${newText.textSliceLines}\n`;
 }
@@ -113,10 +128,10 @@ function concat(existingText: string, newText: ppa.CellSlice): string {
  * This is called to convert VS Code ICells to Gather ICells for logging.
  * @param cell A cell object conforming to the VS Code cell interface
  */
-function convertVscToGatherCell(cell: IVscCell): ppa.Cell | undefined {
+function convertVscToGatherCell(cell: IVscCell): ppatypes.Cell | undefined {
     // This should always be true since we only want to log code cells. Putting this here so types match for outputs property
     if (cell.data.cell_type === 'code') {
-        const result: ppa.Cell = {
+        const result: ppatypes.Cell = {
             // tslint:disable-next-line no-unnecessary-local-variable
             text: cell.data.source,
 
