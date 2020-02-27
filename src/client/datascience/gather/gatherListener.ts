@@ -8,7 +8,6 @@ import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
-import { IServiceContainer } from '../../ioc/types';
 import { generateCellsFromString } from '../cellFactory';
 import { Identifiers } from '../constants';
 import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
@@ -42,8 +41,7 @@ export class GatherListener implements IInteractiveWindowListener {
         @inject(IJupyterExecution) private jupyterExecution: IJupyterExecution,
         @inject(IInteractiveWindowProvider) private interactiveWindowProvider: IInteractiveWindowProvider,
         @inject(IDocumentManager) private documentManager: IDocumentManager,
-        @inject(IFileSystem) private fileSystem: IFileSystem,
-        @inject(IServiceContainer) private serviceContainer: IServiceContainer
+        @inject(IFileSystem) private fileSystem: IFileSystem
     ) { }
 
     public dispose() {
