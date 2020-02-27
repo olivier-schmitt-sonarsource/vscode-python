@@ -88,11 +88,9 @@ export class GatherListener implements IInteractiveWindowListener {
     }
 
     private doGather(payload: ICell): void {
-        if (this.serviceContainer.getAll<IGatherProvider>(IGatherProvider)) {
-            this.gatherCodeInternal(payload).catch(err => {
-                this.applicationShell.showErrorMessage(err);
-            });
-        }
+        this.gatherCodeInternal(payload).catch(err => {
+            this.applicationShell.showErrorMessage(err);
+        });
     }
 
     private doInitGather(payload: string): void {
