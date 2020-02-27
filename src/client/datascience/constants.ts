@@ -78,6 +78,9 @@ export namespace Commands {
     export const ScrollToCell = 'python.datascience.scrolltocell';
     export const CreateNewNotebook = 'python.datascience.createnewnotebook';
     export const ViewJupyterOutput = 'python.datascience.viewJupyterOutput';
+    export const SaveNotebookNonCustomEditor = 'python.datascience.notebookeditor.save';
+    export const SaveAsNotebookNonCustomEditor = 'python.datascience.notebookeditor.saveAs';
+    export const OpenNotebookNonCustomEditor = 'python.datascience.notebookeditor.open';
 }
 
 export namespace CodeLensCommands {
@@ -261,6 +264,7 @@ export enum Telemetry {
     UserInstalledJupyter = 'DATASCIENCE.USER_INSTALLED_JUPYTER',
     UserDidNotInstallJupyter = 'DATASCIENCE.USER_DID_NOT_INSTALL_JUPYTER',
     OpenedInteractiveWindow = 'DATASCIENCE.OPENED_INTERACTIVE',
+    OpenNotebookFailure = 'DS_INTERNAL.NATIVE.OPEN_NOTEBOOK_FAILURE',
     FindKernelForLocalConnection = 'DS_INTERNAL.FIND_KERNEL_FOR_LOCAL_CONNECTION',
     CompletionTimeFromLS = 'DS_INTERNAL.COMPLETION_TIME_FROM_LS',
     CompletionTimeFromJupyter = 'DS_INTERNAL.COMPLETION_TIME_FROM_JUPYTER',
@@ -394,6 +398,8 @@ export namespace CodeSnippits {
     export const MatplotLibInitPng = `import matplotlib\n%matplotlib inline\n${Identifiers.MatplotLibDefaultParams} = dict(matplotlib.rcParams)\n%config InlineBackend.figure_formats = {'png'}`;
     export const ConfigSvg = `%config InlineBackend.figure_formats = {'svg', 'png'}`;
     export const ConfigPng = `%config InlineBackend.figure_formats = {'png'}`;
+    export const UpdateCWDAndPath =
+        'import os\nimport sys\n%cd "{0}"\nif os.getcwd() not in sys.path:\n    sys.path.insert(0, os.getcwd())';
 }
 
 export enum JupyterCommands {

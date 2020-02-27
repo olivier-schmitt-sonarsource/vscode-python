@@ -254,7 +254,7 @@ export class JupyterNotebookBase implements INotebook {
 
         try {
             // When we start our notebook initial, change to our workspace or user specified root directory
-            await this.updateWorkingDirectory();
+            await this.updateWorkingDirectoryAndPath();
 
             const settings = this.configService.getSettings(this.resource).datascience;
             if (settings && settings.themeMatplotlibPlots) {
@@ -361,7 +361,7 @@ export class JupyterNotebookBase implements INotebook {
 
     public setLaunchingFile(file: string): Promise<void> {
         // Update our working directory if we don't have one set already
-        return this.updateWorkingDirectory(file);
+        return this.updateWorkingDirectoryAndPath(file);
     }
 
     public executeObservable(
@@ -829,7 +829,7 @@ export class JupyterNotebookBase implements INotebook {
         });
     };
 
-    private async updateWorkingDirectory(launchingFile?: string): Promise<void> {
+    private async updateWorkingDirectoryAndPath(launchingFile?: string): Promise<void> {
         if (this.launchInfo && this.launchInfo.connectionInfo.localLaunch && !this._workingDirectory) {
             // See what our working dir is supposed to be
             const suggested = this.launchInfo.workingDir;
@@ -847,13 +847,14 @@ export class JupyterNotebookBase implements INotebook {
         }
     }
 
+    // Update both current working directory and sys.path with the desired directory
     private changeDirectoryIfPossible = async (directory: string): Promise<void> => {
         if (
             this.launchInfo &&
             this.launchInfo.connectionInfo.localLaunch &&
             (await this.fs.directoryExists(directory))
         ) {
-            await this.executeSilently(`%cd "${directory}"`);
+            await this.executeSilently(CodeSnippits.UpdateCWDAndPath.format(directory));
         }
     };
 

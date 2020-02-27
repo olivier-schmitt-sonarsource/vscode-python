@@ -3,7 +3,8 @@
 'use strict';
 import { ConfigurationTarget } from 'vscode';
 import { IExtensionSingleActivationService } from '../activation/types';
-import { IWorkspaceService } from '../common/application/types';
+import { IApplicationEnvironment, IWorkspaceService } from '../common/application/types';
+import { UseCustomEditorApi } from '../common/constants';
 import { noop } from '../common/utils/misc';
 import { IServiceManager } from '../ioc/types';
 import { Activation } from './activation';
@@ -33,7 +34,10 @@ import { ShowPlotListener } from './interactive-common/showPlotListener';
 import { AutoSaveService } from './interactive-ipynb/autoSaveService';
 import { NativeEditor } from './interactive-ipynb/nativeEditor';
 import { NativeEditorCommandListener } from './interactive-ipynb/nativeEditorCommandListener';
+import { NativeEditorOldWebView } from './interactive-ipynb/nativeEditorOldWebView';
 import { NativeEditorProvider } from './interactive-ipynb/nativeEditorProvider';
+import { NativeEditorProviderOld } from './interactive-ipynb/nativeEditorProviderOld';
+import { NativeEditorStorage } from './interactive-ipynb/nativeEditorStorage';
 import { InteractiveWindow } from './interactive-window/interactiveWindow';
 import { InteractiveWindowCommandListener } from './interactive-window/interactiveWindowCommandListener';
 import { InteractiveWindowProvider } from './interactive-window/interactiveWindowProvider';
@@ -103,6 +107,7 @@ import {
     INotebookExporter,
     INotebookImporter,
     INotebookServer,
+    INotebookStorage,
     IPlotViewer,
     IPlotViewerProvider,
     IStatusProvider,
@@ -111,6 +116,10 @@ import {
 
 // tslint:disable-next-line: max-func-body-length
 export function registerTypes(serviceManager: IServiceManager) {
+    const useCustomEditorApi = serviceManager.get<IApplicationEnvironment>(IApplicationEnvironment).packageJson
+        .enableProposedApi;
+    serviceManager.addSingletonInstance<boolean>(UseCustomEditorApi, useCustomEditorApi);
+
     serviceManager.addSingleton<IDataScienceCodeLensProvider>(
         IDataScienceCodeLensProvider,
         DataScienceCodeLensProvider
@@ -143,9 +152,9 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, IntellisenseProvider);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, LinkProvider);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, ShowPlotListener);
+    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, AutoSaveService);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, DebugListener);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, GatherListener);
-    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, AutoSaveService);
     serviceManager.addSingleton<IPlotViewerProvider>(IPlotViewerProvider, PlotViewerProvider);
     serviceManager.add<IPlotViewer>(IPlotViewer, PlotViewer);
     serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger);
@@ -157,8 +166,12 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
 
     serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
-    serviceManager.addSingleton<INotebookEditorProvider>(INotebookEditorProvider, NativeEditorProvider);
-    serviceManager.add<INotebookEditor>(INotebookEditor, NativeEditor);
+    serviceManager.addSingleton<INotebookEditorProvider>(
+        INotebookEditorProvider,
+        useCustomEditorApi ? NativeEditorProvider : NativeEditorProviderOld
+    );
+    serviceManager.add<INotebookStorage>(INotebookStorage, NativeEditorStorage);
+    serviceManager.add<INotebookEditor>(INotebookEditor, useCustomEditorApi ? NativeEditor : NativeEditorOldWebView);
     serviceManager.addSingleton<IDataScienceCommandListener>(IDataScienceCommandListener, NativeEditorCommandListener);
     serviceManager.addBinding(ICodeLensFactory, IInteractiveWindowListener);
     serviceManager.addSingleton<IDebugLocationTracker>(IDebugLocationTracker, DebugLocationTrackerFactory);
