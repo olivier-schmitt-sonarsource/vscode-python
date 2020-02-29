@@ -65,6 +65,10 @@ export class GatherProvider implements IGatherProvider {
      * For a given code cell, returns a string representing a program containing all the code it depends on.
      */
     public gatherCode(vscCell: IVscCell): string {
+        if (!this._executionSlicer) {
+            return '# %% [markdown]\n## Gather not available';
+        }
+
         const gatherCell = convertVscToGatherCell(vscCell);
         if (!gatherCell) {
             return '';
@@ -75,16 +79,12 @@ export class GatherProvider implements IGatherProvider {
             this.configService.getSettings().datascience.defaultCellMarker || Identifiers.DefaultCodeCellMarker;
 
         // Call internal slice method
-        if (this._executionSlicer) {
-            const slice = this._executionSlicer.sliceLatestExecution(gatherCell.persistentId);
-            const program = slice.cellSlices.reduce(concat, '').replace(/#%%/g, defaultCellMarker);
+        const slice = this._executionSlicer.sliceLatestExecution(gatherCell.persistentId);
+        const program = slice.cellSlices.reduce(concat, '').replace(/#%%/g, defaultCellMarker);
 
-            // Add a comment at the top of the file explaining what gather does
-            const descriptor = localize.DataScience.gatheredScriptDescription();
-            return descriptor.concat(program);
-        } else {
-            return 'Gather not available';
-        }
+        // Add a comment at the top of the file explaining what gather does
+        const descriptor = localize.DataScience.gatheredScriptDescription();
+        return descriptor.concat(program);
     }
 
     public get executionSlicer() {

@@ -721,7 +721,7 @@ export namespace DataScience {
     );
     export const gatheredNotebookDescriptionInMarkdown = localize(
         'DataScience.gatheredNotebookDescriptionInMarkdown',
-        '# Gathered Notebook\nGenerated from ```{0}```\n\nThis notebook contains only the code and cells required to produce the same results as the gathered cell.\n\nPlease note that the python analysis is quite conservative, so if it is unsure whether a line of code is necessary for execution, it will err on the side of including it.'
+        '## Gathered Notebook\nGenerated from ```{0}```\n\nThis notebook contains only the code and cells required to produce the same results as the gathered cell.\n\nPlease note that the python analysis is quite conservative, so if it is unsure whether a line of code is necessary for execution, it will err on the side of including it.'
     );
     export const savePngTitle = localize('DataScience.savePngTitle', 'Save Image');
     export const fallbackToUseActiveInterpeterAsKernel = localize(
