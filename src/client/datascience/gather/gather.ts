@@ -25,7 +25,11 @@ export class GatherProvider implements IGatherProvider {
         @inject(IDisposableRegistry) private disposables: IDisposableRegistry,
         @inject(ICommandManager) private commandManager: ICommandManager
     ) {
-        this._enabled = this.configService.getSettings().datascience.enableGather ? true : false;
+        this._enabled =
+            this.configService.getSettings().datascience.enableGather &&
+            this.configService.getSettings().insidersChannel !== 'off'
+                ? true
+                : false;
 
         try {
             // tslint:disable-next-line: no-require-imports
