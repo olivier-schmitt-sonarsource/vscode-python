@@ -31,21 +31,23 @@ export class GatherProvider implements IGatherProvider {
                 ? true
                 : false;
 
-        try {
-            // tslint:disable-next-line: no-require-imports
-            const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
+        if (this._enabled) {
+            try {
+                // tslint:disable-next-line: no-require-imports
+                const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
 
-            this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
-            this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
+                this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
+                this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
 
-            if (this._enabled) {
-                this.disposables.push(
-                    this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
-                );
+                if (this._enabled) {
+                    this.disposables.push(
+                        this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
+                    );
+                }
+                traceInfo('Gathering tools have been activated');
+            } catch (ex) {
+                traceInfo('Gathering tools could not be activated');
             }
-            traceInfo('Gathering tools have been activated');
-        } catch (ex) {
-            traceInfo('Gathering tools could not be activated');
         }
     }
 
