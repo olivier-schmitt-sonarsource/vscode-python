@@ -46,6 +46,8 @@ steps:
 
     - bash: |
           npm run package
+#      env:
+#        ENABLE_GATHER: ${ENABLE_GATHER}
       displayName: 'Build VSIX'
 
     - task: CopyFiles@2
