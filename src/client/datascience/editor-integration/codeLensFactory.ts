@@ -40,7 +40,7 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
         @inject(IInteractiveWindowProvider) private interactiveWindowProvider: IInteractiveWindowProvider,
         @inject(IJupyterExecution) private jupyterExecution: IJupyterExecution,
         @inject(IFileSystem) private fileSystem: IFileSystem
-    ) { }
+    ) {}
 
     public dispose(): void {
         noop();

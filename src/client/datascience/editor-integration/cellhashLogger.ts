@@ -13,7 +13,7 @@ import { CellHashProvider } from './cellhashprovider';
 // hashes for cells.
 @injectable()
 export class CellHashLogger implements ICellHashLogger {
-    constructor(@inject(ICellHashProvider) private provider: ICellHashProvider) { }
+    constructor(@inject(ICellHashProvider) private provider: ICellHashProvider) {}
 
     public async preExecute(cell: ICell, silent: boolean): Promise<void> {
         const providerObj: CellHashProvider = this.provider as CellHashProvider;

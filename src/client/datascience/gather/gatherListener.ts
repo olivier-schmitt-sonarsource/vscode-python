@@ -42,7 +42,7 @@ export class GatherListener implements IInteractiveWindowListener {
         @inject(IInteractiveWindowProvider) private interactiveWindowProvider: IInteractiveWindowProvider,
         @inject(IDocumentManager) private documentManager: IDocumentManager,
         @inject(IFileSystem) private fileSystem: IFileSystem
-    ) { }
+    ) {}
 
     public dispose() {
         noop();

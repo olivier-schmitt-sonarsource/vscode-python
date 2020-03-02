@@ -271,18 +271,18 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         if (notebookMetadata?.kernelspec || resourceInterpreter?.displayName !== launchInfo.interpreter?.displayName) {
             const kernelInfo = await (launchInfo.connectionInfo.localLaunch
                 ? this.kernelSelector.getKernelForLocalConnection(
-                    resource,
-                    sessionManager,
-                    notebookMetadata,
-                    false,
-                    cancelToken
-                )
+                      resource,
+                      sessionManager,
+                      notebookMetadata,
+                      false,
+                      cancelToken
+                  )
                 : this.kernelSelector.getKernelForRemoteConnection(
-                    resource,
-                    sessionManager,
-                    notebookMetadata,
-                    cancelToken
-                ));
+                      resource,
+                      sessionManager,
+                      notebookMetadata,
+                      cancelToken
+                  ));
 
             const kernelInfoToUse = kernelInfo?.kernelSpec || kernelInfo?.kernelModel;
             if (kernelInfoToUse) {

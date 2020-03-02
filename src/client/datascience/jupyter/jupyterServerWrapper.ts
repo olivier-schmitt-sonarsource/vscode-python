@@ -34,11 +34,11 @@ import { HostJupyterServer } from './liveshare/hostJupyterServer';
 import { IRoleBasedObject, RoleBasedFactory } from './liveshare/roleBasedFactory';
 import { ILiveShareHasRole } from './liveshare/types';
 
-interface IJupyterServerInterface extends IRoleBasedObject, INotebookServer { }
+interface IJupyterServerInterface extends IRoleBasedObject, INotebookServer {}
 
 // tslint:disable:callable-types
 type JupyterServerClassType = {
-    new(
+    new (
         liveShare: ILiveShareApi,
         dataScience: IDataScience,
         asyncRegistry: IAsyncDisposableRegistry,

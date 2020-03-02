@@ -1297,7 +1297,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
                     this.postMessageToWebPanel(msg);
                 },
                 // tslint:disable-next-line:no-any no-empty
-                setState: (_msg: any) => { },
+                setState: (_msg: any) => {},
                 // tslint:disable-next-line:no-any no-empty
                 getState: () => {
                     return {};

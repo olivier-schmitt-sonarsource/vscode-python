@@ -12,7 +12,7 @@ export class GatherLogger implements IGatherLogger {
     constructor(
         @inject(IGatherProvider) private gather: IGatherProvider,
         @inject(IConfigurationService) private configService: IConfigurationService
-    ) { }
+    ) {}
 
     public async preExecute(_vscCell: IVscCell, _silent: boolean): Promise<void> {
         // This function is just implemented here for compliance with the INotebookExecutionLogger interface
