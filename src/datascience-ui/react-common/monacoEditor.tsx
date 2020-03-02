@@ -41,7 +41,6 @@ enum WidgetCSSSelector {
 export interface IMonacoEditorProps {
     language: string;
     value: string;
-    previousValue: string | undefined;
     theme?: string;
     outermostParentClass: string;
     options: monacoEditor.editor.IEditorConstructionOptions;
@@ -49,6 +48,7 @@ export interface IMonacoEditorProps {
     forceBackground?: string;
     measureWidthClassName?: string;
     version: number;
+    hasFocus: boolean;
     cursorPos: CursorPos | monacoEditor.IPosition;
     modelChanged(e: IMonacoModelContentChangeEvent): void;
     editorMounted(editor: monacoEditor.editor.IStandaloneCodeEditor): void;
@@ -85,13 +85,9 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
     private lineTops: { top: number; index: number }[] = [];
     private debouncedComputeLineTops = debounce(this.computeLineTops.bind(this), 100);
     private skipNotifications = false;
-
+    private previousModelValue: string = '';
     /**
      * Reference to parameter widget (used by monaco to display parameter docs).
-     *
-     * @private
-     * @type {Element}
-     * @memberof MonacoEditor
      */
     private parameterWidget?: Element;
 
@@ -164,6 +160,9 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
 
             // Save the editor and the model in our state.
             this.setState({ editor, model });
+            if (this.props.hasFocus) {
+                this.giveFocusToEditor(editor, this.props.cursorPos, this.props.options.readOnly);
+            }
             if (this.props.theme) {
                 monacoEditor.editor.setTheme(this.props.theme);
             }
@@ -305,6 +304,7 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
         }
     };
 
+    // tslint:disable-next-line: cyclomatic-complexity
     public componentDidUpdate(prevProps: IMonacoEditorProps, prevState: IMonacoEditorState) {
         if (this.state.editor) {
             if (prevProps.language !== this.props.language && this.state.model) {
@@ -344,6 +344,9 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
         // that the editor generates for the background colors.
         if (!prevState.editor && this.state.editor && this.containerRef.current) {
             this.updateBackgroundStyle();
+        }
+        if (this.state.editor && !prevProps.hasFocus && this.props.hasFocus) {
+            this.giveFocusToEditor(this.state.editor, this.props.cursorPos, this.props.options.readOnly);
         }
     }
     public shouldComponentUpdate(
@@ -399,15 +402,8 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
     }
 
     public giveFocus(cursorPos: CursorPos | monacoEditor.IPosition) {
-        const readOnly = this.props.options.readOnly;
-        if (this.state.editor && !readOnly) {
-            this.state.editor.focus();
-        }
-        if (this.state.editor && cursorPos !== CursorPos.Current) {
-            const current = this.state.editor.getPosition();
-            const lineNumber = cursorPos === CursorPos.Top ? 1 : this.state.editor.getModel()!.getLineCount();
-            const column = current && current.lineNumber === lineNumber ? current.column : 1;
-            this.state.editor.setPosition({ lineNumber, column });
+        if (this.state.editor) {
+            this.giveFocusToEditor(this.state.editor, cursorPos, this.props.options.readOnly);
         }
     }
 
@@ -434,6 +430,25 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
         }
     }
 
+    /**
+     * Give focus to the specified editor and clear the property used to track whether to set focus to an editor or not.
+     */
+    private giveFocusToEditor(
+        editor: monacoEditor.editor.IStandaloneCodeEditor,
+        cursorPos: CursorPos | monacoEditor.IPosition,
+        readonly?: boolean
+    ) {
+        if (!readonly) {
+            editor.focus();
+        }
+        if (cursorPos !== CursorPos.Current) {
+            const current = editor.getPosition();
+            const lineNumber = cursorPos === CursorPos.Top ? 1 : editor.getModel()!.getLineCount();
+            const column = current && current.lineNumber === lineNumber ? current.column : 1;
+            editor.setPosition({ lineNumber, column });
+        }
+    }
+
     private closeSuggestWidget() {
         // tslint:disable-next-line: no-any
         const suggest = this.state.editor?.getContribution('editor.contrib.suggestController') as any;
@@ -455,6 +470,7 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
             this.closeSuggestWidget();
 
             // Change our text. This shouldn't fire an update to the model
+            this.previousModelValue = text;
             this.state.model.setValue(text);
 
             this.skipNotifications = false;
@@ -473,13 +489,9 @@ export class MonacoEditor extends React.Component<IMonacoEditorProps, IMonacoEdi
     private onModelChanged = (e: monacoEditor.editor.IModelContentChangedEvent) => {
         // If not skipping notifications, send an event
         if (!this.skipNotifications && this.state.model && this.state.editor) {
-            this.props.modelChanged(
-                generateChangeEvent(
-                    e,
-                    this.state.model,
-                    this.props.previousValue ? this.props.previousValue : this.props.value
-                )
-            );
+            this.props.modelChanged(generateChangeEvent(e, this.state.model, this.previousModelValue));
+            // Any changes from now onw will be considered previous.
+            this.previousModelValue = this.getContents();
         }
     };
 

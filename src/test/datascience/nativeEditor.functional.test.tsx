@@ -20,6 +20,7 @@ import { noop } from '../../client/common/utils/misc';
 import { Identifiers } from '../../client/datascience/constants';
 import { DataScienceErrorHandler } from '../../client/datascience/errorHandler/errorHandler';
 import { InteractiveWindowMessages } from '../../client/datascience/interactive-common/interactiveWindowTypes';
+import { NativeEditor as NativeEditorWebView } from '../../client/datascience/interactive-ipynb/nativeEditor';
 import { JupyterExecutionFactory } from '../../client/datascience/jupyter/jupyterExecutionFactory';
 import {
     ICell,
@@ -29,6 +30,7 @@ import {
     INotebookExporter
 } from '../../client/datascience/types';
 import { PythonInterpreter } from '../../client/interpreter/contracts';
+import { concatMultilineStringInput } from '../../datascience-ui/common';
 import { Editor } from '../../datascience-ui/interactive-common/editor';
 import { ExecutionCount } from '../../datascience-ui/interactive-common/executionCount';
 import { CommonActionType } from '../../datascience-ui/interactive-common/redux/reducers/types';
@@ -701,7 +703,7 @@ df.head()`;
                     const runButton = imageButtons.findWhere(w => w.props().tooltip === 'Run cell');
                     assert.equal(runButton.length, 1, 'No run button found');
                     const update = waitForMessage(ioc, InteractiveWindowMessages.ExecutionRendered, {
-                        numberOfTimes: 2
+                        numberOfTimes: 3
                     });
                     runButton.simulate('click');
                     await update;
@@ -816,7 +818,7 @@ df.head()`;
                     execution_count: null,
                     metadata: {},
                     outputs: [],
-                    source: []
+                    source: ['a']
                 });
 
                 const addedJSONFile = JSON.stringify(addedJSON, null, ' ');
@@ -891,6 +893,30 @@ df.head()`;
                     } else {
                         simulateKeyPressOnCellInner(cellIndex, keyboardEvent);
                     }
+                }
+
+                async function addMarkdown(code: string): Promise<void> {
+                    const totalCells = wrapper.find('NativeCell').length;
+                    const newCellIndex = totalCells;
+                    await addCell(wrapper, ioc, code, false);
+                    assert.equal(wrapper.find('NativeCell').length, totalCells + 1);
+
+                    // First lose focus
+                    clickCell(newCellIndex);
+                    let update = waitForMessage(ioc, InteractiveWindowMessages.UnfocusedCellEditor);
+                    simulateKeyPressOnCell(1, { code: 'Escape' });
+                    await update;
+
+                    // Switch to markdown
+                    update = waitForMessage(ioc, CommonActionType.CHANGE_CELL_TYPE);
+                    simulateKeyPressOnCell(newCellIndex, { code: 'm' });
+                    await update;
+
+                    clickCell(newCellIndex);
+
+                    // Monaco editor should be rendered and the cell should be markdown
+                    assert.ok(!isCellFocused(wrapper, 'NativeCell', newCellIndex));
+                    assert.ok(isCellMarkdown(wrapper, 'NativeCell', newCellIndex));
                 }
 
                 function simulateKeyPressOnEditor(
@@ -1063,8 +1089,9 @@ df.head()`;
                         return update;
                     }
                     test('Add a cell and undo', async () => {
-                        addMockData(ioc, 'c=4\nc', '4');
-                        await addCell(wrapper, ioc, 'c=4\nc', false);
+                        // Add empty cell, else adding text is yet another thing that needs to be undone,
+                        // we have tests for that.
+                        await addCell(wrapper, ioc, '', false);
 
                         // Should have 4 cells
                         assert.equal(wrapper.find('NativeCell').length, 4, 'Cell not added');
@@ -1166,6 +1193,135 @@ df.head()`;
                         await undo();
                         foundCell = getOutputCell(wrapper, 'NativeCell', 2)?.instance() as NativeCell;
                         assert.equal(foundCell.props.cellVM.cell.id, 'NotebookImport#2', 'Cell did not move back');
+                    });
+
+                    test('Update as user types into editor (update redux store and model)', async () => {
+                        const cellIndex = 3;
+                        await addCell(wrapper, ioc, '', false);
+                        assert.ok(isCellFocused(wrapper, 'NativeCell', cellIndex));
+                        assert.equal(wrapper.find('NativeCell').length, 4, 'Cell not added');
+
+                        const notebookProvider = ioc.get<INotebookEditorProvider>(INotebookEditorProvider);
+                        const model = (notebookProvider.editors[0] as NativeEditorWebView).model;
+
+                        // This is the string the user will type in a character at a time into the editor.
+                        const stringToType = 'Hi! Bob!';
+
+                        // We are expecting to receive multiple edits to the model in the backend/extension from react, one for each character.
+                        // Lets create deferreds that we can await on, and each will be resolved with the edit it received.
+                        // For first edit, we'll expect `H`, then `i`, then `!`
+                        const modelEditsInExtension = stringToType.split('').map(createDeferred);
+                        model?.changed(e => {
+                            if (e.kind === 'edit') {
+                                // Find the first deferred that's no completed.
+                                const deferred = modelEditsInExtension.find(d => !d.completed);
+                                // Resolve promise with the character/string it received as edit.
+                                deferred?.resolve(e.forward.map(m => m.text).join(''));
+                            }
+                        });
+
+                        for (let index = 0; index < stringToType.length; index += 1) {
+                            // Single character to be typed into the editor.
+                            const characterToTypeIntoEditor = stringToType.substring(index, index + 1);
+
+                            // Type a character into the editor.
+                            const editorEnzyme = getNativeFocusedEditor(wrapper);
+                            typeCode(editorEnzyme, characterToTypeIntoEditor);
+
+                            const reactEditor = editorEnzyme!.instance() as MonacoEditor;
+                            const editorValue = reactEditor.state.editor!.getModel()!.getValue();
+                            const expectedString = stringToType.substring(0, index + 1);
+
+                            // 1. Validate the value in the monaco editor.
+                            // Confirms value in the editor is as expected.
+                            assert.equal(editorValue, expectedString, 'Text does not match');
+
+                            // 2. Validate the value in the redux state (props - update in redux, will push through to props).
+                            // Confirms value in the props is as expected.
+                            assert.equal(reactEditor.props.value, expectedString, 'Text does not match');
+
+                            // 3. Validate the edit received by the extension from the react side.
+                            // When user types `H`, then we'll expect to see `H` edit received in the model, then `i`, `!` & so on.
+                            const expectedModelEditInExtension = modelEditsInExtension[index];
+                            // Verify against the character the user typed.
+                            await assert.eventually.equal(
+                                expectedModelEditInExtension.promise,
+                                characterToTypeIntoEditor
+                            );
+                        }
+                    });
+                    test('Updates are not lost when switching to markdown (update redux store and model)', async () => {
+                        const cellIndex = 3;
+                        await addCell(wrapper, ioc, '', false);
+                        assert.ok(isCellFocused(wrapper, 'NativeCell', cellIndex));
+                        assert.equal(wrapper.find('NativeCell').length, 4, 'Cell not added');
+
+                        const notebookProvider = ioc.get<INotebookEditorProvider>(INotebookEditorProvider);
+                        const model = (notebookProvider.editors[0] as NativeEditorWebView).model;
+
+                        // This is the string the user will type in a character at a time into the editor.
+                        const stringToType = 'Hi Bob!';
+
+                        // We are expecting to receive multiple edits to the model in the backend/extension from react, one for each character.
+                        // Lets create deferreds that we can await on, and each will be resolved with the edit it received.
+                        // For first edit, we'll expect `H`, then `i`, then `!`
+                        const modelEditsInExtension = createDeferred();
+                        // Create deferred to detect changes to cellType.
+                        const modelCellChangedInExtension = createDeferred();
+                        model?.changed(e => {
+                            // Resolve promise when we receive last edit (the last character `!`).
+                            if (e.kind === 'edit' && e.forward.map(m => m.text).join('') === '!') {
+                                modelEditsInExtension.resolve();
+                            }
+                            if (e.kind === 'changeCellType') {
+                                modelCellChangedInExtension.resolve();
+                            }
+                        });
+
+                        // Type into new cell in one go (e.g. a paste operation)
+                        const editorEnzyme = getNativeFocusedEditor(wrapper);
+                        typeCode(editorEnzyme, stringToType);
+
+                        // Verify cell content
+                        const reactEditor = editorEnzyme!.instance() as MonacoEditor;
+                        const editorValue = reactEditor.state.editor!.getModel()!.getValue();
+
+                        // 1. Validate the value in the monaco editor.
+                        // Confirms value in the editor is as expected.
+                        assert.equal(editorValue, stringToType, 'Text does not match');
+
+                        // 2. Validate the value in the monaco editor state (redux state).
+                        // Ensures we are keeping redux upto date.
+                        assert.equal(reactEditor.props.value, stringToType, 'Text does not match');
+
+                        // 3. Validate the edit received by the extension from the react side.
+                        await modelEditsInExtension.promise;
+                        assert.equal(concatMultilineStringInput(model?.cells[3].data.source!), stringToType);
+
+                        // Now hit escape.
+                        let update = waitForUpdate(wrapper, NativeEditor, 1);
+                        simulateKeyPressOnCell(cellIndex, { code: 'Escape' });
+                        await update;
+
+                        // Confirm it is no longer focused, and it is selected.
+                        assert.equal(isCellSelected(wrapper, 'NativeCell', cellIndex), true);
+                        assert.equal(isCellFocused(wrapper, 'NativeCell', cellIndex), false);
+
+                        // Switch to markdown
+                        update = waitForMessage(ioc, CommonActionType.CHANGE_CELL_TYPE);
+                        simulateKeyPressOnCell(cellIndex, { code: 'm' });
+                        await update;
+
+                        // Monaco editor should be rendered and the cell should be markdown
+                        assert.ok(!isCellFocused(wrapper, 'NativeCell', cellIndex), 'cell is not focused');
+                        assert.ok(isCellMarkdown(wrapper, 'NativeCell', cellIndex), 'cell is not markdown');
+
+                        // Confirm cell has been changed in model.
+                        await modelCellChangedInExtension.promise;
+                        // Verify the cell type.
+                        assert.equal(model?.cells[3].data.cell_type, 'markdown');
+                        // Verify that changing cell type didn't result in a loss of data.
+                        assert.equal(concatMultilineStringInput(model?.cells[3].data.source!), stringToType);
                     });
                 });
 
@@ -1269,7 +1425,7 @@ df.head()`;
                         assert.equal(isCellFocused(wrapper, 'NativeCell', 1), true);
 
                         // Now hit escape.
-                        update = waitForUpdate(wrapper, NativeEditor, 1);
+                        update = waitForMessage(ioc, InteractiveWindowMessages.UnfocusedCellEditor);
                         simulateKeyPressOnCell(1, { code: 'Escape' });
                         await update;
 
@@ -1455,6 +1611,49 @@ df.head()`;
                             isCellSelected(wrapper, 'NativeCell', secondCell),
                             'Second new cell must not be selected'
                         );
+                    });
+
+                    test('Navigating cells using up/down keys through code & markdown cells, while focus is set to editor', async () => {
+                        // Previously when pressing ArrowDown with mixture of markdown and code cells,
+                        // the cursor would not go past a markdown cell (i.e. markdown editor will not get focus for ArrowDown to work).
+
+                        wrapper.update();
+
+                        // Add a markdown cell at the end.
+                        await addMarkdown('4');
+                        await addCell(wrapper, ioc, '5', false);
+                        await addMarkdown('6');
+                        await addCell(wrapper, ioc, '7', false);
+
+                        // Access the code in the cells.
+                        const notebookProvider = ioc.get<INotebookEditorProvider>(INotebookEditorProvider);
+                        const model = (notebookProvider.editors[0] as NativeEditorWebView).model;
+
+                        // Set focus to the first cell.
+                        let update = waitForUpdate(wrapper, NativeEditor, 1);
+                        clickCell(0);
+                        await update;
+                        update = waitForMessage(ioc, InteractiveWindowMessages.FocusedCellEditor);
+                        simulateKeyPressOnCell(0, { code: 'Enter' });
+                        await update;
+                        assert.ok(isCellFocused(wrapper, 'NativeCell', 0));
+
+                        for (let index = 0; index < 5; index += 1) {
+                            // 1. Now press the down arrow, and focus should go to the next cell.
+                            update = waitForMessage(ioc, InteractiveWindowMessages.FocusedCellEditor);
+                            const monacoEditor = getNativeFocusedEditor(wrapper)!.instance() as MonacoEditor;
+                            monacoEditor.getCurrentVisibleLine = () => 0;
+                            monacoEditor.getVisibleLineCount = () => 1;
+                            simulateKeyPressOnCell(index, { code: 'ArrowDown' });
+                            await update;
+
+                            // Next cell.
+                            const expectedActiveCell = model?.cells[index + 1];
+                            // The editor has focus, confirm the value in the active element/editor is the code.
+                            const codeInActiveElement = ((document.activeElement as any).value as string).trim();
+                            const expectedCode = concatMultilineStringInput(expectedActiveCell!.data.source!).trim();
+                            assert.equal(codeInActiveElement, expectedCode);
+                        }
                     });
 
                     test("Pressing 'd' on a selected cell twice deletes the cell", async () => {

@@ -14,7 +14,6 @@ import { CursorPos, IFont } from './mainState';
 // tslint:disable-next-line: import-name
 export interface IEditorProps {
     content: string;
-    previousContent: string | undefined;
     version: number;
     codeTheme: string;
     readOnly: boolean;
@@ -51,12 +50,6 @@ export class Editor extends React.Component<IEditorProps> {
     public componentWillUnmount = () => {
         this.subscriptions.forEach(d => d.dispose());
     };
-
-    public componentDidUpdate(prevProps: IEditorProps) {
-        if (this.props.hasFocus && !prevProps.hasFocus) {
-            this.giveFocus(this.props.cursorPos);
-        }
-    }
 
     public render() {
         const classes = this.props.readOnly ? 'editor-area' : 'editor-area editor-area-editable';
@@ -114,7 +107,6 @@ export class Editor extends React.Component<IEditorProps> {
                 measureWidthClassName={this.props.editorMeasureClassName}
                 testMode={this.props.testMode}
                 value={this.props.content}
-                previousValue={this.props.previousContent}
                 outermostParentClass={this.props.outermostParentClass}
                 theme={this.props.monacoTheme ? this.props.monacoTheme : 'vs'}
                 language={this.props.language}
@@ -124,6 +116,7 @@ export class Editor extends React.Component<IEditorProps> {
                 version={this.props.version}
                 openLink={this.props.openLink}
                 ref={this.monacoRef}
+                hasFocus={this.props.hasFocus}
                 cursorPos={this.props.cursorPos}
             />
         );

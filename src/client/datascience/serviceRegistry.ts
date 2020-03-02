@@ -15,6 +15,7 @@ import { ActiveEditorContextService } from './context/activeEditorContext';
 import { DataViewer } from './data-viewing/dataViewer';
 import { DataViewerProvider } from './data-viewing/dataViewerProvider';
 import { DataScience } from './datascience';
+import { DataScienceSurveyBannerLogger } from './dataScienceSurveyBanner';
 import { DebugLocationTrackerFactory } from './debugLocationTrackerFactory';
 import { CellHashLogger } from './editor-integration/cellhashLogger';
 import { CellHashProvider } from './editor-integration/cellhashprovider';
@@ -158,10 +159,10 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger);
     serviceManager.add<IDataScienceErrorHandler>(IDataScienceErrorHandler, DataScienceErrorHandler);
     serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);
-
     serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
     serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger);
     serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
+    serviceManager.addSingleton<IInteractiveWindowListener>(IInteractiveWindowListener, DataScienceSurveyBannerLogger);
 
     serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
     serviceManager.addSingleton<INotebookEditorProvider>(
