@@ -163,6 +163,7 @@ import { ActiveEditorContextService } from '../../client/datascience/context/act
 import { DataViewer } from '../../client/datascience/data-viewing/dataViewer';
 import { DataViewerProvider } from '../../client/datascience/data-viewing/dataViewerProvider';
 import { DebugLocationTrackerFactory } from '../../client/datascience/debugLocationTrackerFactory';
+import { CellHashLogger } from '../../client/datascience/editor-integration/cellhashLogger';
 import { CellHashProvider } from '../../client/datascience/editor-integration/cellhashprovider';
 import { CodeLensFactory } from '../../client/datascience/editor-integration/codeLensFactory';
 import { DataScienceCodeLensProvider } from '../../client/datascience/editor-integration/codelensprovider';
@@ -209,6 +210,7 @@ import { StatusProvider } from '../../client/datascience/statusProvider';
 import { ThemeFinder } from '../../client/datascience/themeFinder';
 import {
     ICellHashListener,
+    ICellHashLogger,
     ICellHashProvider,
     ICodeCssGenerator,
     ICodeLensFactory,
@@ -606,12 +608,12 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
 
         this.serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, IntellisenseProvider);
         this.serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, AutoSaveService);
+        this.serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, GatherListener);
         this.serviceManager.add<IProtocolParser>(IProtocolParser, ProtocolParser);
         this.serviceManager.addSingleton<IDebugService>(IDebugService, MockDebuggerService);
-        this.serviceManager.addSingleton<ICellHashProvider>(ICellHashProvider, CellHashProvider);
-        this.serviceManager.addBinding(ICellHashProvider, IInteractiveWindowListener);
-        this.serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, GatherListener);
-        this.serviceManager.addBinding(ICellHashProvider, INotebookExecutionLogger);
+        this.serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
+        this.serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger);
+        this.serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
         this.serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
         this.serviceManager.add<IGatherProvider>(IGatherProvider, GatherProvider);
         this.serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);

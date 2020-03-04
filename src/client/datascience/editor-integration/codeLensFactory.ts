@@ -55,7 +55,7 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
     public onMessage(message: string, payload?: any) {
         switch (message) {
             case InteractiveWindowMessages.NotebookExecutionActivated:
-                this.handleMessage(message, payload, this.doInitCellHashProvider);
+                this.initCellHashProvider(<string>payload).ignoreErrors();
                 break;
 
             case InteractiveWindowMessages.FinishCell:
@@ -107,20 +107,6 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
         return codeLenses;
     }
 
-    // tslint:disable:no-any
-    private handleMessage<M extends IInteractiveWindowMapping, T extends keyof M>(
-        _message: T,
-        payload: any,
-        handler: (args: M[T]) => void
-    ) {
-        const args = payload as M[T];
-        handler.bind(this)(args);
-    }
-
-    private doInitCellHashProvider(payload: string): void {
-        this.initCellHashProvider(payload).ignoreErrors();
-    }
-
     private async initCellHashProvider(notebookUri: string) {
         const nbUri: Uri = Uri.parse(notebookUri);
         if (!nbUri) {
@@ -146,6 +132,7 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
             }
         }
     }
+
     private enumerateCommands(resource: Resource): string[] {
         let fullCommandList: string[];
         // Add our non-debug commands
