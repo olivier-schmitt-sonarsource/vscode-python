@@ -116,7 +116,7 @@ export class GatherListener implements IInteractiveWindowListener {
     }
 
     private gatherCodeInternal = async (cell: ICell) => {
-        const slicedProgram = this.gatherProvider ? this.gatherProvider.gatherCode(cell) : '';
+        const slicedProgram = this.gatherProvider ? this.gatherProvider.gatherCode(cell) : 'Gather internal error';
 
         if (this.configService.getSettings().datascience.gatherToScript) {
             await this.showFile(slicedProgram, cell.file);

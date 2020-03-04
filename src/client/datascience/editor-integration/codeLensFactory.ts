@@ -137,7 +137,7 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
         if (activeServer) {
             nb = await activeServer.getNotebook(nbUri);
 
-            // If we have an executing notebook, get its gather execution service.
+            // If we have an executing notebook, get its cell hash provider service.
             if (nb) {
                 this.hashProvider = nb.getCellHashProvider();
                 if (this.hashProvider) {
