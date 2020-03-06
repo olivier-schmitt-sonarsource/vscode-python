@@ -11,7 +11,7 @@ import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { generateCellRangesFromDocument } from '../cellFactory';
 import { CodeLensCommands, Commands } from '../constants';
-import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
+import { InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
 import {
     ICell,
     ICellHashProvider,

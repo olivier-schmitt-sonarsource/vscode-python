@@ -23,7 +23,15 @@ export function getInteractiveCellResults(
 
 export async function getOrCreateInteractiveWindow(ioc: DataScienceIocContainer): Promise<IInteractiveWindow> {
     const interactiveWindowProvider = ioc.get<IInteractiveWindowProvider>(IInteractiveWindowProvider);
-    return (await interactiveWindowProvider.getOrCreateActive()) as InteractiveWindow;
+    const iw = (await interactiveWindowProvider.getOrCreateActive()) as InteractiveWindow;
+
+    // const interactiveWindowListener = ioc.get<IInteractiveWindowListener>(ICodeLensFactory);
+    // interactiveWindowListener.onMessage(
+    //     InteractiveWindowMessages.NotebookExecutionActivated,
+    //     Identifiers.InteractiveWindowIdentity
+    // );
+
+    return iw;
 }
 
 export function closeInteractiveWindow(

@@ -114,135 +114,86 @@ import {
     IThemeFinder
 } from './types';
 
+// README: Did you make sure "dataScienceIocContainer.ts" has also been updated appropriately?
+
 // tslint:disable-next-line: max-func-body-length
 export function registerTypes(serviceManager: IServiceManager) {
-    const useCustomEditorApi = serviceManager.get<IApplicationEnvironment>(IApplicationEnvironment).packageJson
-        .enableProposedApi;
-    serviceManager.addSingletonInstance<boolean>(UseCustomEditorApi, useCustomEditorApi);
+    const useCustomEditorApi = serviceManager.get<IApplicationEnvironment>(IApplicationEnvironment).packageJson.enableProposedApi;
 
-    serviceManager.addSingleton<IDataScienceCodeLensProvider>(
-        IDataScienceCodeLensProvider,
-        DataScienceCodeLensProvider
-    );
-    serviceManager.addSingleton<IDataScience>(IDataScience, DataScience);
-    serviceManager.addSingleton<IJupyterExecution>(IJupyterExecution, JupyterExecutionFactory);
-    serviceManager.addSingleton<IDataScienceCommandListener>(
-        IDataScienceCommandListener,
-        InteractiveWindowCommandListener
-    );
-    serviceManager.addSingleton<IInteractiveWindowProvider>(IInteractiveWindowProvider, InteractiveWindowProvider);
-    serviceManager.add<IInteractiveWindow>(IInteractiveWindow, InteractiveWindow);
-    serviceManager.add<INotebookExporter>(INotebookExporter, JupyterExporter);
-    serviceManager.add<INotebookImporter>(INotebookImporter, JupyterImporter);
-    serviceManager.add<INotebookServer>(INotebookServer, JupyterServerWrapper);
-    serviceManager.addSingleton<ICodeCssGenerator>(ICodeCssGenerator, CodeCssGenerator);
-    serviceManager.addSingleton<IJupyterPasswordConnect>(IJupyterPasswordConnect, JupyterPasswordConnect);
-    serviceManager.addSingleton<IStatusProvider>(IStatusProvider, StatusProvider);
-    serviceManager.addSingleton<IJupyterSessionManagerFactory>(
-        IJupyterSessionManagerFactory,
-        JupyterSessionManagerFactory
-    );
-    serviceManager.addSingleton<IJupyterVariables>(IJupyterVariables, JupyterVariables);
+    serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger, undefined, [INotebookExecutionLogger]);
+    serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
     serviceManager.add<ICodeWatcher>(ICodeWatcher, CodeWatcher);
-    serviceManager.add<IJupyterCommandFactory>(IJupyterCommandFactory, JupyterCommandFactory);
-    serviceManager.addSingleton<IThemeFinder>(IThemeFinder, ThemeFinder);
-    serviceManager.addSingleton<IDataViewerProvider>(IDataViewerProvider, DataViewerProvider);
+    serviceManager.add<IDataScienceErrorHandler>(IDataScienceErrorHandler, DataScienceErrorHandler);
     serviceManager.add<IDataViewer>(IDataViewer, DataViewer);
-    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, Decorator);
-    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, IntellisenseProvider);
-    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, LinkProvider);
-    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, ShowPlotListener);
+    serviceManager.add<IInteractiveWindow>(IInteractiveWindow, InteractiveWindow);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, AutoSaveService);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, DebugListener);
     serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, GatherListener);
-    serviceManager.addSingleton<IPlotViewerProvider>(IPlotViewerProvider, PlotViewerProvider);
-    serviceManager.add<IPlotViewer>(IPlotViewer, PlotViewer);
-    serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger);
-    serviceManager.add<IDataScienceErrorHandler>(IDataScienceErrorHandler, DataScienceErrorHandler);
-    serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);
-    serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
-    serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger);
-    serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
-    serviceManager.addSingleton<IInteractiveWindowListener>(IInteractiveWindowListener, DataScienceSurveyBannerLogger);
-
-    serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
-    serviceManager.addSingleton<INotebookEditorProvider>(
-        INotebookEditorProvider,
-        useCustomEditorApi ? NativeEditorProvider : NativeEditorProviderOld
-    );
-    serviceManager.add<INotebookStorage>(INotebookStorage, NativeEditorStorage);
+    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, IntellisenseProvider);
+    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, LinkProvider);
+    serviceManager.add<IInteractiveWindowListener>(IInteractiveWindowListener, ShowPlotListener);
+    serviceManager.add<IJupyterCommandFactory>(IJupyterCommandFactory, JupyterCommandFactory);
     serviceManager.add<INotebookEditor>(INotebookEditor, useCustomEditorApi ? NativeEditor : NativeEditorOldWebView);
-    serviceManager.addSingleton<IDataScienceCommandListener>(IDataScienceCommandListener, NativeEditorCommandListener);
-    serviceManager.addBinding(ICodeLensFactory, IInteractiveWindowListener);
-    serviceManager.addSingleton<IDebugLocationTracker>(IDebugLocationTracker, DebugLocationTrackerFactory);
-    serviceManager.addSingleton<JupyterCommandFinder>(JupyterCommandFinder, JupyterCommandFinder);
-    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, Activation);
-    serviceManager.addSingleton<KernelService>(KernelService, KernelService);
-    serviceManager.addSingleton<NotebookStarter>(NotebookStarter, NotebookStarter);
-    serviceManager.addSingleton<KernelSelector>(KernelSelector, KernelSelector);
-    serviceManager.addSingleton<KernelSelectionProvider>(KernelSelectionProvider, KernelSelectionProvider);
-    serviceManager.addSingleton<CommandRegistry>(CommandRegistry, CommandRegistry);
-    serviceManager.addSingleton<JupyterServerSelectorCommand>(
-        JupyterServerSelectorCommand,
-        JupyterServerSelectorCommand
-    );
-    serviceManager.addSingleton<KernelSwitcherCommand>(KernelSwitcherCommand, KernelSwitcherCommand);
-    serviceManager.addSingleton<KernelSwitcher>(KernelSwitcher, KernelSwitcher);
-    serviceManager.addSingleton<JupyterServerSelector>(JupyterServerSelector, JupyterServerSelector);
-    serviceManager.addSingleton<JupyterCommandLineSelectorCommand>(
-        JupyterCommandLineSelectorCommand,
-        JupyterCommandLineSelectorCommand
-    );
-    serviceManager.addSingleton<JupyterCommandLineSelector>(JupyterCommandLineSelector, JupyterCommandLineSelector);
-    serviceManager.addSingleton<JupyterInterpreterStateStore>(
-        JupyterInterpreterStateStore,
-        JupyterInterpreterStateStore
-    );
-    serviceManager.addSingleton<IExtensionSingleActivationService>(
-        IExtensionSingleActivationService,
-        JupyterInterpreterSelectionCommand
-    );
-    serviceManager.addSingleton<IExtensionSingleActivationService>(
-        IExtensionSingleActivationService,
-        PreWarmActivatedJupyterEnvironmentVariables
-    );
-    serviceManager.addSingleton<JupyterInterpreterSelector>(JupyterInterpreterSelector, JupyterInterpreterSelector);
-    serviceManager.addSingleton<JupyterInterpreterDependencyService>(
-        JupyterInterpreterDependencyService,
-        JupyterInterpreterDependencyService
-    );
-    serviceManager.addSingleton<JupyterInterpreterService>(JupyterInterpreterService, JupyterInterpreterService);
-    serviceManager.addSingleton<JupyterInterpreterOldCacheStateStore>(
-        JupyterInterpreterOldCacheStateStore,
-        JupyterInterpreterOldCacheStateStore
-    );
+    serviceManager.add<INotebookExporter>(INotebookExporter, JupyterExporter);
+    serviceManager.add<INotebookImporter>(INotebookImporter, JupyterImporter);
+    serviceManager.add<INotebookServer>(INotebookServer, JupyterServerWrapper);
+    serviceManager.add<INotebookStorage>(INotebookStorage, NativeEditorStorage);
+    serviceManager.add<IPlotViewer>(IPlotViewer, PlotViewer);
     serviceManager.addSingleton<ActiveEditorContextService>(ActiveEditorContextService, ActiveEditorContextService);
-    serviceManager.addSingleton<ProgressReporter>(ProgressReporter, ProgressReporter);
-    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, ServerPreload);
+    serviceManager.addSingleton<CommandRegistry>(CommandRegistry, CommandRegistry);
     serviceManager.addSingleton<DataViewerDependencyService>(DataViewerDependencyService, DataViewerDependencyService);
+    serviceManager.addSingleton<ICodeCssGenerator>(ICodeCssGenerator, CodeCssGenerator);
+    serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory, undefined, [IInteractiveWindowListener]);
+    serviceManager.addSingleton<IDataScience>(IDataScience, DataScience);
+    serviceManager.addSingleton<IDataScienceCodeLensProvider>(IDataScienceCodeLensProvider, DataScienceCodeLensProvider);
+    serviceManager.addSingleton<IDataScienceCommandListener>(IDataScienceCommandListener, InteractiveWindowCommandListener);
+    serviceManager.addSingleton<IDataScienceCommandListener>(IDataScienceCommandListener, NativeEditorCommandListener);
+    serviceManager.addSingleton<IDataViewerProvider>(IDataViewerProvider, DataViewerProvider);
+    serviceManager.addSingleton<IDebugLocationTracker>(IDebugLocationTracker, DebugLocationTrackerFactory);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, Activation);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, Decorator);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, JupyterInterpreterSelectionCommand);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, PreWarmActivatedJupyterEnvironmentVariables);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, ServerPreload);
+    serviceManager.addSingleton<IExtensionSingleActivationService>(IExtensionSingleActivationService, ServerPreload);
+    serviceManager.addSingleton<IInteractiveWindowListener>(IInteractiveWindowListener, DataScienceSurveyBannerLogger);
+    serviceManager.addSingleton<IInteractiveWindowProvider>(IInteractiveWindowProvider, InteractiveWindowProvider);
+    serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger, undefined, [ICellHashListener]);
+    serviceManager.addSingleton<IJupyterExecution>(IJupyterExecution, JupyterExecutionFactory);
+    serviceManager.addSingleton<IJupyterPasswordConnect>(IJupyterPasswordConnect, JupyterPasswordConnect);
+    serviceManager.addSingleton<IJupyterSessionManagerFactory>(IJupyterSessionManagerFactory, JupyterSessionManagerFactory);
+    serviceManager.addSingleton<IJupyterVariables>(IJupyterVariables, JupyterVariables);
+    serviceManager.addSingleton<INotebookEditorProvider>(INotebookEditorProvider, useCustomEditorApi ? NativeEditorProvider : NativeEditorProviderOld);
+    serviceManager.addSingleton<IPlotViewerProvider>(IPlotViewerProvider, PlotViewerProvider);
+    serviceManager.addSingleton<IStatusProvider>(IStatusProvider, StatusProvider);
+    serviceManager.addSingleton<IThemeFinder>(IThemeFinder, ThemeFinder);
+    serviceManager.addSingleton<JupyterCommandFinder>(JupyterCommandFinder, JupyterCommandFinder);
+    serviceManager.addSingleton<JupyterCommandLineSelector>(JupyterCommandLineSelector, JupyterCommandLineSelector);
+    serviceManager.addSingleton<JupyterCommandLineSelectorCommand>(JupyterCommandLineSelectorCommand, JupyterCommandLineSelectorCommand);
+    serviceManager.addSingleton<JupyterInterpreterDependencyService>(JupyterInterpreterDependencyService, JupyterInterpreterDependencyService);
+    serviceManager.addSingleton<JupyterInterpreterOldCacheStateStore>(JupyterInterpreterOldCacheStateStore, JupyterInterpreterOldCacheStateStore);
+    serviceManager.addSingleton<JupyterInterpreterSelector>(JupyterInterpreterSelector, JupyterInterpreterSelector);
+    serviceManager.addSingleton<JupyterInterpreterService>(JupyterInterpreterService, JupyterInterpreterService);
+    serviceManager.addSingleton<JupyterInterpreterStateStore>(JupyterInterpreterStateStore, JupyterInterpreterStateStore);
+    serviceManager.addSingleton<JupyterServerSelector>(JupyterServerSelector, JupyterServerSelector);
+    serviceManager.addSingleton<JupyterServerSelectorCommand>(JupyterServerSelectorCommand, JupyterServerSelectorCommand);
+    serviceManager.addSingleton<KernelSelectionProvider>(KernelSelectionProvider, KernelSelectionProvider);
+    serviceManager.addSingleton<KernelSelector>(KernelSelector, KernelSelector);
+    serviceManager.addSingleton<KernelService>(KernelService, KernelService);
+    serviceManager.addSingleton<KernelSwitcher>(KernelSwitcher, KernelSwitcher);
+    serviceManager.addSingleton<KernelSwitcherCommand>(KernelSwitcherCommand, KernelSwitcherCommand);
+    serviceManager.addSingleton<NotebookStarter>(NotebookStarter, NotebookStarter);
+    serviceManager.addSingleton<ProgressReporter>(ProgressReporter, ProgressReporter);
+    serviceManager.addSingletonInstance<boolean>(UseCustomEditorApi, useCustomEditorApi);
 
     // Temporary code, to allow users to revert to the old behavior.
-    const cfg = serviceManager
-        .get<IWorkspaceService>(IWorkspaceService)
-        .getConfiguration('python.dataScience', undefined);
+    const cfg = serviceManager.get<IWorkspaceService>(IWorkspaceService).getConfiguration('python.dataScience', undefined);
     if (cfg.get<boolean>('useOldJupyterServer', false)) {
-        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(
-            IJupyterSubCommandExecutionService,
-            JupyterCommandFinderInterpreterExecutionService
-        );
-        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(
-            IJupyterInterpreterDependencyManager,
-            JupyterCommandInterpreterDependencyService
-        );
+        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(IJupyterInterpreterDependencyManager, JupyterCommandInterpreterDependencyService);
+        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(IJupyterSubCommandExecutionService, JupyterCommandFinderInterpreterExecutionService);
     } else {
-        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(
-            IJupyterSubCommandExecutionService,
-            JupyterInterpreterSubCommandExecutionService
-        );
-        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(
-            IJupyterInterpreterDependencyManager,
-            JupyterInterpreterSubCommandExecutionService
-        );
+        serviceManager.addSingleton<IJupyterInterpreterDependencyManager>(IJupyterInterpreterDependencyManager, JupyterInterpreterSubCommandExecutionService);
+        serviceManager.addSingleton<IJupyterSubCommandExecutionService>(IJupyterSubCommandExecutionService, JupyterInterpreterSubCommandExecutionService);
     }
 
     registerGatherTypes(serviceManager);
@@ -253,6 +204,5 @@ export function registerGatherTypes(serviceManager: IServiceManager) {
     const gather = require('./gather/gather');
 
     serviceManager.add<IGatherProvider>(IGatherProvider, gather.GatherProvider);
-    serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger);
-    serviceManager.addBinding(IGatherLogger, INotebookExecutionLogger);
+    serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger, undefined, [INotebookExecutionLogger]);
 }

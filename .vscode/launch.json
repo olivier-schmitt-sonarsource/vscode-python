@@ -185,7 +185,7 @@
                 "--ui=tdd",
                 "--recursive",
                 "--colors",
-                //"--grep", "<suite name>",
+                //"--grep", "gathering",
                 "--timeout=300000"
             ],
             "outFiles": [
@@ -234,7 +234,7 @@
                 "--ui=tdd",
                 "--recursive",
                 "--colors",
-                //"--grep", "<suite name>",
+                "--grep", "Remove",
                 "--timeout=300000"
             ],
             "env": {
