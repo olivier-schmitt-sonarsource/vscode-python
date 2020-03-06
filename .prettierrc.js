@@ -10,7 +10,7 @@ module.exports = {
             }
         },
         {
-            files: ['**/datascience/serviceRegistry.ts', '**/datascience/dataScienceIocContainer.ts'],
+            files: ['**/datascience/serviceRegistry.ts'],
             options: {
                 printWidth: 240
             }
