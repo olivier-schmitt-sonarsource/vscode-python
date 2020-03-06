@@ -336,32 +336,32 @@ for _ in range(50):
     sys.stdout.write('\\r')`;
 
             addMockData(ioc, badPanda, `pandas has no attribute 'read'`, 'text/html', 'error');
-            //            addMockData(ioc, goodPanda, `<td>A table</td>`, 'text/html');
-            // addMockData(ioc, matPlotLib, matPlotLibResults, 'text/html');
-            // const cursors = ['|', '/', '-', '\\'];
-            // let cursorPos = 0;
-            // let loops = 3;
-            // addContinuousMockData(ioc, spinningCursor, async _c => {
-            //     const result = `${cursors[cursorPos]}\r`;
-            //     cursorPos += 1;
-            //     if (cursorPos >= cursors.length) {
-            //         cursorPos = 0;
-            //         loops -= 1;
-            //     }
-            //     return Promise.resolve({ result: result, haveMore: loops > 0 });
-            // });
+            addMockData(ioc, goodPanda, `<td>A table</td>`, 'text/html');
+            addMockData(ioc, matPlotLib, matPlotLibResults, 'text/html');
+            const cursors = ['|', '/', '-', '\\'];
+            let cursorPos = 0;
+            let loops = 3;
+            addContinuousMockData(ioc, spinningCursor, async _c => {
+                const result = `${cursors[cursorPos]}\r`;
+                cursorPos += 1;
+                if (cursorPos >= cursors.length) {
+                    cursorPos = 0;
+                    loops -= 1;
+                }
+                return Promise.resolve({ result: result, haveMore: loops > 0 });
+            });
 
             await addCode(ioc, wrapper, badPanda, true);
             verifyHtmlOnCell(wrapper, 'InteractiveCell', `has no attribute 'read'`, CellPosition.Last);
 
-            // await addCode(ioc, wrapper, goodPanda);
-            // verifyHtmlOnCell(wrapper, 'InteractiveCell', `<td>`, CellPosition.Last);
+            await addCode(ioc, wrapper, goodPanda);
+            verifyHtmlOnCell(wrapper, 'InteractiveCell', `<td>`, CellPosition.Last);
 
-            // await addCode(ioc, wrapper, matPlotLib);
-            // verifyHtmlOnCell(wrapper, 'InteractiveCell', /img|Figure/, CellPosition.Last);
+            await addCode(ioc, wrapper, matPlotLib);
+            verifyHtmlOnCell(wrapper, 'InteractiveCell', /img|Figure/, CellPosition.Last);
 
-            // await addCode(ioc, wrapper, spinningCursor);
-            // verifyHtmlOnCell(wrapper, 'InteractiveCell', '<div>', CellPosition.Last);
+            await addCode(ioc, wrapper, spinningCursor);
+            verifyHtmlOnCell(wrapper, 'InteractiveCell', '<div>', CellPosition.Last);
 
             addContinuousMockData(ioc, 'len?', async _c => {
                 return Promise.resolve({
