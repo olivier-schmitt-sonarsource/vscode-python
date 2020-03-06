@@ -628,7 +628,9 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
         this.serviceManager.add<IGatherProvider>(IGatherProvider, GatherProvider);
         this.serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger);
+        this.serviceManager.addBinding(IGatherLogger, INotebookExecutionLogger);
         this.serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);
+        this.serviceManager.addBinding(ICodeLensFactory, IInteractiveWindowListener);
         this.serviceManager.addSingleton<IShellDetector>(IShellDetector, TerminalNameShellDetector);
         this.serviceManager.addSingleton<InterpeterHashProviderFactory>(
             InterpeterHashProviderFactory,
