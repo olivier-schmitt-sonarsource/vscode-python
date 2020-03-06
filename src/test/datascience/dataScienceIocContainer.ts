@@ -174,6 +174,7 @@ import { CodeWatcher } from '../../client/datascience/editor-integration/codewat
 import { DataScienceErrorHandler } from '../../client/datascience/errorHandler/errorHandler';
 import { GatherProvider } from '../../client/datascience/gather/gather';
 import { GatherListener } from '../../client/datascience/gather/gatherListener';
+import { GatherLogger } from '../../client/datascience/gather/gatherLogger';
 import { IntellisenseProvider } from '../../client/datascience/interactive-common/intellisense/intellisenseProvider';
 import { AutoSaveService } from '../../client/datascience/interactive-ipynb/autoSaveService';
 import { NativeEditor } from '../../client/datascience/interactive-ipynb/nativeEditor';
@@ -226,6 +227,7 @@ import {
     IDataViewer,
     IDataViewerProvider,
     IDebugLocationTracker,
+    IGatherLogger,
     IGatherProvider,
     IInteractiveWindow,
     IInteractiveWindowListener,
@@ -625,6 +627,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
         this.serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
         this.serviceManager.add<IGatherProvider>(IGatherProvider, GatherProvider);
+        this.serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger);
         this.serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);
         this.serviceManager.addSingleton<IShellDetector>(IShellDetector, TerminalNameShellDetector);
         this.serviceManager.addSingleton<InterpeterHashProviderFactory>(
