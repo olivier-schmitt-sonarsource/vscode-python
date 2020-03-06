@@ -7,7 +7,6 @@ import { Event, EventEmitter, Position, Range, TextDocumentChangeEvent, TextDocu
 
 import { splitMultilineString } from '../../../datascience-ui/common';
 import { IDebugService, IDocumentManager } from '../../common/application/types';
-// tslint:disable-next-line: ordered-imports
 import { traceError, traceInfo } from '../../common/logger';
 import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
@@ -37,14 +36,6 @@ interface IRangedCellHash extends ICellHash {
 // hashes for cells.
 @injectable()
 export class CellHashProvider implements ICellHashProvider, IInteractiveWindowListener {
-    public get updated(): Event<void> {
-        return this.updateEventEmitter.event;
-    }
-
-    // tslint:disable-next-line: no-any
-    public get postMessage(): Event<{ message: string; payload: any }> {
-        return this.postEmitter.event;
-    }
     public executionCount: number = 0;
 
     // tslint:disable-next-line: no-any
@@ -70,6 +61,15 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
 
     public dispose() {
         this.hashes.clear();
+    }
+
+    public get updated(): Event<void> {
+        return this.updateEventEmitter.event;
+    }
+
+    // tslint:disable-next-line: no-any
+    public get postMessage(): Event<{ message: string; payload: any }> {
+        return this.postEmitter.event;
     }
 
     // tslint:disable-next-line: no-any

@@ -37,9 +37,9 @@ export class GatherListener implements IInteractiveWindowListener {
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
         @inject(INotebookExporter) private jupyterExporter: INotebookExporter,
         @inject(INotebookEditorProvider) private ipynbProvider: INotebookEditorProvider,
-        @inject(IConfigurationService) private configService: IConfigurationService,
         @inject(IJupyterExecution) private jupyterExecution: IJupyterExecution,
         @inject(IInteractiveWindowProvider) private interactiveWindowProvider: IInteractiveWindowProvider,
+        @inject(IConfigurationService) private configService: IConfigurationService,
         @inject(IDocumentManager) private documentManager: IDocumentManager,
         @inject(IFileSystem) private fileSystem: IFileSystem
     ) {}
