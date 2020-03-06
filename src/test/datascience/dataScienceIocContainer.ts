@@ -64,9 +64,11 @@ import {
     IDiagnosticHandlerService,
     IDiagnosticsService
 } from '../../client/application/diagnostics/types';
+import { ClipboardService } from '../../client/common/application/clipboard';
 import { TerminalManager } from '../../client/common/application/terminalManager';
 import {
     IApplicationShell,
+    IClipboard,
     ICommandManager,
     ICustomEditorService,
     IDebugService,
@@ -161,6 +163,7 @@ import { CodeCssGenerator } from '../../client/datascience/codeCssGenerator';
 import { JUPYTER_OUTPUT_CHANNEL } from '../../client/datascience/constants';
 import { ActiveEditorContextService } from '../../client/datascience/context/activeEditorContext';
 import { DataViewer } from '../../client/datascience/data-viewing/dataViewer';
+import { DataViewerDependencyService } from '../../client/datascience/data-viewing/dataViewerDependencyService';
 import { DataViewerProvider } from '../../client/datascience/data-viewing/dataViewerProvider';
 import { DebugLocationTrackerFactory } from '../../client/datascience/debugLocationTrackerFactory';
 import { CellHashLogger } from '../../client/datascience/editor-integration/cellhashLogger';
@@ -201,6 +204,7 @@ import { JupyterVariables } from '../../client/datascience/jupyter/jupyterVariab
 import { KernelSelectionProvider } from '../../client/datascience/jupyter/kernels/kernelSelections';
 import { KernelSelector } from '../../client/datascience/jupyter/kernels/kernelSelector';
 import { KernelService } from '../../client/datascience/jupyter/kernels/kernelService';
+import { KernelSwitcher } from '../../client/datascience/jupyter/kernels/kernelSwitcher';
 import { NotebookStarter } from '../../client/datascience/jupyter/notebookStarter';
 import { ServerPreload } from '../../client/datascience/jupyter/serverPreload';
 import { PlotViewer } from '../../client/datascience/plotting/plotViewer';
@@ -397,6 +401,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
 
     private webPanelProvider: TypeMoq.IMock<IWebPanelProvider> | undefined;
     private settingsMap = new Map<string, any>();
+    private kernelServiceMock = mock(KernelService);
 
     constructor() {
         super();
@@ -513,6 +518,10 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger);
         this.serviceManager.addSingleton<IDebugLocationTracker>(IDebugLocationTracker, DebugLocationTrackerFactory);
         this.serviceManager.addSingleton<INotebookEditorProvider>(INotebookEditorProvider, TestNativeEditorProvider);
+        this.serviceManager.addSingleton<DataViewerDependencyService>(
+            DataViewerDependencyService,
+            DataViewerDependencyService
+        );
         this.serviceManager.add<INotebookEditor>(
             INotebookEditor,
             useCustomEditor ? NativeEditor : NativeEditorOldWebView
@@ -644,6 +653,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.addSingleton<NotebookStarter>(NotebookStarter, NotebookStarter);
         this.serviceManager.addSingleton<KernelSelector>(KernelSelector, KernelSelector);
         this.serviceManager.addSingleton<KernelSelectionProvider>(KernelSelectionProvider, KernelSelectionProvider);
+        this.serviceManager.addSingleton<KernelSwitcher>(KernelSwitcher, KernelSwitcher);
         this.serviceManager.addSingleton<IInterpreterSelector>(IInterpreterSelector, InterpreterSelector);
         this.serviceManager.addSingleton<IShebangCodeLensProvider>(IShebangCodeLensProvider, ShebangCodeLensProvider);
         this.serviceManager.addSingleton<IProductService>(IProductService, ProductService);
@@ -855,6 +865,7 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         );
 
         this.serviceManager.addSingletonInstance<IApplicationShell>(IApplicationShell, appShell.object);
+        this.serviceManager.addSingleton<IClipboard>(IClipboard, ClipboardService);
         this.serviceManager.addSingletonInstance<IDocumentManager>(IDocumentManager, this.documentManager);
         this.serviceManager.addSingletonInstance<IWorkspaceService>(IWorkspaceService, instance(workspaceService));
         this.serviceManager.addSingletonInstance<IConfigurationService>(
@@ -1028,9 +1039,8 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         if (this.shouldMockJupyter) {
             this.jupyterMock = new MockJupyterManagerFactory(this.serviceManager);
             // When using mocked Jupyter, default to using default kernel.
-            const kernelService = mock(KernelService);
-            when(kernelService.searchAndRegisterKernel(anything(), anything())).thenResolve(undefined);
-            this.serviceManager.addSingletonInstance<KernelService>(KernelService, instance(kernelService));
+            when(this.kernelServiceMock.searchAndRegisterKernel(anything(), anything())).thenResolve(undefined);
+            this.serviceManager.addSingletonInstance<KernelService>(KernelService, instance(this.kernelServiceMock));
         } else {
             this.serviceManager.addSingleton<IInstaller>(IInstaller, ProductInstaller);
             this.serviceManager.addSingleton<KernelService>(KernelService, KernelService);
@@ -1090,6 +1100,10 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
             IExtensionSingleActivationService
         );
         await Promise.all(activationServices.map(a => a.activate()));
+    }
+
+    public get kernelService() {
+        return this.kernelServiceMock;
     }
 
     public createWebPanel(): IWebPanel {

@@ -62,6 +62,7 @@ export namespace Common {
     export const canceled = localize('Common.canceled', 'Canceled');
     export const cancel = localize('Common.cancel', 'Cancel');
     export const gotIt = localize('Common.gotIt', 'Got it!');
+    export const install = localize('Common.install', 'Install');
     export const loadingExtension = localize('Common.loadingPythonExtension', 'Python extension loading...');
     export const openOutputPanel = localize('Common.openOutputPanel', 'Show output');
     export const noIWillDoItLater = localize('Common.noIWillDoItLater', 'No, I will do it later');
@@ -458,6 +459,10 @@ export namespace DataScience {
         'DataScience.jupyterNotebookConnectFailed',
         'Failed to connect to Jupyter notebook. \r\n{0}\r\n{1}'
     );
+    export const reloadAfterChangingJupyterServerConnection = localize(
+        'DataScience.reloadAfterChangingJupyterServerConnection',
+        'Please reload VS Code when changing the Jupyter Server connection.'
+    );
     export const jupyterNotebookRemoteConnectFailed = localize(
         'DataScience.jupyterNotebookRemoteConnectFailed',
         'Failed to connect to remote Jupyter notebook.\r\nCheck that the Jupyter Server URI setting has a valid running server specified.\r\n{0}\r\n{1}'
@@ -611,11 +616,11 @@ export namespace DataScience {
     );
     export const jupyterDebuggerNotInstalledError = localize(
         'DataScience.jupyterDebuggerNotInstalledError',
-        'Pip module ptvsd is required for debugging cells. You will need to install it to debug cells.'
+        'Pip module {0} is required for debugging cells. You will need to install it to debug cells.'
     );
-    export const jupyterDebuggerPtvsdParseError = localize(
-        'DataScience.jupyterDebuggerPtvsdParseError',
-        'Unable to parse ptvsd output, please log an issue with https://github.com/microsoft/vscode-python'
+    export const jupyterDebuggerOutputParseError = localize(
+        'DataScience.jupyterDebuggerOutputParseError',
+        'Unable to parse {0} output, please log an issue with https://github.com/microsoft/vscode-python'
     );
     export const jupyterDebuggerPortNotAvailableError = localize(
         'DataScience.jupyterDebuggerPortNotAvailableError',
@@ -633,16 +638,16 @@ export namespace DataScience {
         'DataScience.jupyterDebuggerPortBlockedSearchError',
         'A port cannot be connected to for debugging. Please let ports {0}-{1} through your firewall.'
     );
-    export const jupyterDebuggerInstallPtvsdNew = localize(
-        'DataScience.jupyterDebuggerInstallPtvsdNew',
-        'Pip module ptvsd is required for debugging cells. Install ptvsd and continue to debug cell?'
+    export const jupyterDebuggerInstallNew = localize(
+        'DataScience.jupyterDebuggerInstallNew',
+        'Pip module {0} is required for debugging cells. Install {0} and continue to debug cell?'
     );
-    export const jupyterDebuggerInstallPtvsdUpdate = localize(
-        'DataScience.jupyterDebuggerInstallPtvsdUpdate',
-        'The version of ptvsd installed does not support debugging cells. Update ptvsd to newest version and continue to debug cell?'
+    export const jupyterDebuggerInstallUpdate = localize(
+        'DataScience.jupyterDebuggerInstallUpdate',
+        'The version of {0} installed does not support debugging cells. Update {0} to newest version and continue to debug cell?'
     );
-    export const jupyterDebuggerInstallPtvsdYes = localize('DataScience.jupyterDebuggerInstallPtvsdYes', 'Yes');
-    export const jupyterDebuggerInstallPtvsdNo = localize('DataScience.jupyterDebuggerInstallPtvsdNo', 'No');
+    export const jupyterDebuggerInstallYes = localize('DataScience.jupyterDebuggerInstallYes', 'Yes');
+    export const jupyterDebuggerInstallNo = localize('DataScience.jupyterDebuggerInstallNo', 'No');
     export const cellStopOnErrorFormatMessage = localize(
         'DataScience.cellStopOnErrorFormatMessage',
         '{0} cells were canceled due to an error in the previous cell.'
@@ -799,9 +804,9 @@ export namespace DataScience {
     export const createdNewNotebook = localize('DataScience.createdNewNotebook', '{0}: Creating new notebook ');
 
     export const createdNewKernel = localize('DataScience.createdNewKernel', '{0}: Kernel started: {1}');
-    export const kernelIsDead = localize(
-        'DataScience.kernelIsDead',
-        'Kernel {0} died while starting. Check the Jupyter output tab for more information.'
+    export const kernelInvalid = localize(
+        'DataScience.kernelInvalid',
+        'Kernel {0} is not usable. Check the Jupyter output tab for more information.'
     );
 }
 
@@ -925,6 +930,13 @@ export namespace Testing {
     export const testSkippedDiagnosticMessage = localize('Testing.testSkippedDiagnosticMessage', 'Skipped');
     export const configureTests = localize('Testing.configureTests', 'Configure Test Framework');
     export const disableTests = localize('Testing.disableTests', 'Disable Tests');
+}
+
+export namespace OutdatedDebugger {
+    export const outdatedDebuggerMessage = localize(
+        'OutdatedDebugger.updateDebuggerMessage',
+        'We noticed you are attaching to ptvsd (Python debugger), which will be deprecated on May 1st, 2020. Please switch to [debugpy](https://aka.ms/migrateToDebugpy).'
+    );
 }
 
 // Skip using vscode-nls and instead just compute our strings based on key values. Key values

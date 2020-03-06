@@ -393,6 +393,7 @@ export interface INotebookEditor extends IInteractiveBase {
     readonly file: Uri;
     readonly visible: boolean;
     readonly active: boolean;
+    readonly model: INotebookModel | undefined;
     load(storage: INotebookModel, webViewPanel?: WebviewPanel): Promise<void>;
     runAllCells(): void;
     runSelectedCell(): void;
@@ -641,7 +642,6 @@ export interface IJupyterVariablesResponse {
 export const IDataViewerProvider = Symbol('IDataViewerProvider');
 export interface IDataViewerProvider {
     create(variable: IJupyterVariable, notebook: INotebook): Promise<IDataViewer>;
-    getPandasVersion(notebook: INotebook): Promise<{ major: number; minor: number; build: number } | undefined>;
 }
 export const IDataViewer = Symbol('IDataViewer');
 

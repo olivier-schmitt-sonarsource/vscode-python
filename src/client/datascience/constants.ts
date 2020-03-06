@@ -262,7 +262,9 @@ export enum Telemetry {
     JupyterCommandSearch = 'DATASCIENCE.JUPYTER_COMMAND_SEARCH',
     RegisterInterpreterAsKernel = 'DS_INTERNAL.JUPYTER_REGISTER_INTERPRETER_AS_KERNEL',
     UserInstalledJupyter = 'DATASCIENCE.USER_INSTALLED_JUPYTER',
+    UserInstalledPandas = 'DATASCIENCE.USER_INSTALLED_PANDAS',
     UserDidNotInstallJupyter = 'DATASCIENCE.USER_DID_NOT_INSTALL_JUPYTER',
+    UserDidNotInstallPandas = 'DATASCIENCE.USER_DID_NOT_INSTALL_PANDAS',
     OpenedInteractiveWindow = 'DATASCIENCE.OPENED_INTERACTIVE',
     OpenNotebookFailure = 'DS_INTERNAL.NATIVE.OPEN_NOTEBOOK_FAILURE',
     FindKernelForLocalConnection = 'DS_INTERNAL.FIND_KERNEL_FOR_LOCAL_CONNECTION',
@@ -275,7 +277,8 @@ export enum Telemetry {
     JupyterInstallFailed = 'DS_INTERNAL.JUPYTER_INSTALL_FAILED',
     UserInstalledModule = 'DATASCIENCE.USER_INSTALLED_MODULE',
     JupyterCommandLineNonDefault = 'DS_INTERNAL.JUPYTER_CUSTOM_COMMAND_LINE',
-    NewFileForInteractiveWindow = 'DS_INTERNAL.NEW_FILE_USED_IN_INTERACTIVE'
+    NewFileForInteractiveWindow = 'DS_INTERNAL.NEW_FILE_USED_IN_INTERACTIVE',
+    KernelInvalid = 'DS_INTERNAL.INVALID_KERNEL_USED'
 }
 
 export enum NativeKeyboardCommandTelemetry {

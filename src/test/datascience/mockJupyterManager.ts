@@ -91,6 +91,8 @@ export class MockJupyterManager implements IJupyterSessionManager {
     private currentSession: MockJupyterSession | undefined;
     private connInfo: IConnection | undefined;
     private cleanTemp: (() => void) | undefined;
+    private pendingSessionFailure = false;
+    private pendingKernelChangeFailure = false;
 
     constructor(serviceManager: IServiceManager) {
         // Make our process service factory always return this item
@@ -154,7 +156,8 @@ export class MockJupyterManager implements IJupyterSessionManager {
             this.cleanTemp = cleanup;
         });
         this.addCell(`import sys\r\nsys.path.append('undefined')\r\nsys.path`);
-        this.addCell(`import ptvsd\r\nptvsd.enable_attach(('localhost', 0))`);
+        this.addCell(`import ptvsd;ptvsd.enable_attach(('localhost', 0))`);
+        this.addCell(`import debugpy;debugpy.listen(('localhost', 0))`);
         this.addCell("matplotlib.style.use('dark_background')");
         this.addCell(`matplotlib.rcParams.update(${Identifiers.MatplotLibDefaultParams})`);
         this.addCell(`%cd "${path.join(EXTENSION_ROOT_DIR, 'src', 'test', 'datascience')}"`);
@@ -197,6 +200,14 @@ export class MockJupyterManager implements IJupyterSessionManager {
 
     public getCurrentSession(): MockJupyterSession | undefined {
         return this.currentSession;
+    }
+
+    public forcePendingIdleFailure() {
+        this.pendingSessionFailure = true;
+    }
+
+    public forcePendingKernelChangeFailure() {
+        this.pendingKernelChangeFailure = true;
     }
 
     public getRunningKernels(): Promise<IJupyterKernel[]> {
@@ -456,7 +467,16 @@ export class MockJupyterManager implements IJupyterSessionManager {
     }
 
     private createNewSession(): MockJupyterSession {
-        this.currentSession = new MockJupyterSession(this.cellDictionary, MockJupyterTimeDelay);
+        const sessionFailure = this.pendingSessionFailure;
+        const kernelChangeFailure = this.pendingKernelChangeFailure;
+        this.pendingSessionFailure = false;
+        this.pendingKernelChangeFailure = false;
+        this.currentSession = new MockJupyterSession(
+            this.cellDictionary,
+            MockJupyterTimeDelay,
+            sessionFailure,
+            kernelChangeFailure
+        );
         return this.currentSession;
     }
 
