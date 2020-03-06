@@ -14,13 +14,15 @@ import { CodeLensCommands, Commands } from '../constants';
 import { InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
 import {
     ICell,
+    ICellHashLogger,
     ICellHashProvider,
     ICodeLensFactory,
     IFileHashes,
     IInteractiveWindowListener,
     IInteractiveWindowProvider,
     IJupyterExecution,
-    INotebook
+    INotebook,
+    INotebookExecutionLogger
 } from '../types';
 
 @injectable()
@@ -125,11 +127,24 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
 
             // If we have an executing notebook, get its cell hash provider service.
             if (nb) {
-                this.hashProvider = nb.getCellHashProvider();
+                this.hashProvider = this.getCellHashProvider(nb);
                 if (this.hashProvider) {
                     this.hashProvider.updated(this.hashesUpdated.bind(this));
                 }
             }
+        }
+    }
+    private getCellHashProvider(nb: INotebook): ICellHashProvider | undefined {
+        let cellHashLogger: ICellHashLogger | undefined;
+
+        nb.getLoggers().forEach((logger: INotebookExecutionLogger) => {
+            if (logger as ICellHashLogger) {
+                cellHashLogger = <ICellHashLogger>logger;
+            }
+        });
+
+        if (cellHashLogger) {
+            return cellHashLogger.getProvider();
         }
     }
 

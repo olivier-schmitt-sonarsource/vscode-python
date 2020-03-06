@@ -11,13 +11,13 @@ import { traceError } from '../../../common/logger';
 import { IFileSystem } from '../../../common/platform/types';
 import { IConfigurationService, IDisposableRegistry, Resource } from '../../../common/types';
 import { createDeferred } from '../../../common/utils/async';
-import { IServiceContainer } from '../../../ioc/types';
 import { Identifiers, LiveShare, LiveShareCommands } from '../../constants';
 import { IExecuteInfo } from '../../interactive-common/interactiveWindowTypes';
 import {
     ICell,
     IJupyterSession,
     INotebook,
+    INotebookExecutionLogger,
     INotebookServer,
     INotebookServerLaunchInfo,
     InterruptResult
@@ -48,7 +48,7 @@ export class HostJupyterNotebook
         disposableRegistry: IDisposableRegistry,
         owner: INotebookServer,
         launchInfo: INotebookServerLaunchInfo,
-        serviceContainer: IServiceContainer,
+        loggers: INotebookExecutionLogger[],
         resource: Resource,
         identity: vscode.Uri,
         getDisposedError: () => Error,
@@ -63,7 +63,7 @@ export class HostJupyterNotebook
             disposableRegistry,
             owner,
             launchInfo,
-            serviceContainer,
+            loggers,
             resource,
             identity,
             getDisposedError,

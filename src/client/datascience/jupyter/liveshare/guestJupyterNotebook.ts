@@ -18,11 +18,10 @@ import { PythonInterpreter } from '../../../interpreter/contracts';
 import { LiveShare, LiveShareCommands } from '../../constants';
 import {
     ICell,
-    ICellHashProvider,
-    IGatherProvider,
     IJupyterKernelSpec,
     INotebook,
     INotebookCompletion,
+    INotebookExecutionLogger,
     INotebookServer,
     InterruptResult
 } from '../../types';
@@ -235,16 +234,11 @@ export class GuestJupyterNotebook
         return;
     }
 
-    public getGatherProvider(): IGatherProvider | undefined {
-        return;
-    }
-
-    public getCellHashProvider(): ICellHashProvider | undefined {
-        return;
-    }
-
     public setKernelSpec(_spec: IJupyterKernelSpec | LiveKernelModel, _timeout: number): Promise<void> {
         return Promise.resolve();
+    }
+    public getLoggers(): INotebookExecutionLogger[] {
+        return [];
     }
 
     private onServerResponse = (args: Object) => {

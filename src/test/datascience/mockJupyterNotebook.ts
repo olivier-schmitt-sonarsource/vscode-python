@@ -132,4 +132,8 @@ export class MockJupyterNotebook implements INotebook {
     public setKernelSpec(_spec: IJupyterKernelSpec | LiveKernelModel, _timeout: number): Promise<void> {
         return Promise.resolve();
     }
+
+    public getLoggers(): INotebookExecutionLogger[] {
+        return [];
+    }
 }

@@ -21,7 +21,6 @@ import {
 } from '../../../common/types';
 import * as localize from '../../../common/utils/localize';
 import { IInterpreterService } from '../../../interpreter/contracts';
-import { IServiceContainer } from '../../../ioc/types';
 import { Identifiers, LiveShare, LiveShareCommands, RegExpValues } from '../../constants';
 import {
     IDataScience,
@@ -29,6 +28,7 @@ import {
     IJupyterSessionManager,
     IJupyterSessionManagerFactory,
     INotebook,
+    INotebookExecutionLogger,
     INotebookServer,
     INotebookServerLaunchInfo
 } from '../../types';
@@ -54,22 +54,14 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         configService: IConfigurationService,
         sessionManager: IJupyterSessionManagerFactory,
         private workspaceService: IWorkspaceService,
-        serviceContainer: IServiceContainer,
+        loggers: INotebookExecutionLogger[],
         private appService: IApplicationShell,
         private fs: IFileSystem,
         private readonly kernelSelector: KernelSelector,
         private readonly interpreterService: IInterpreterService,
         outputChannel: IOutputChannel
     ) {
-        super(
-            liveShare,
-            asyncRegistry,
-            disposableRegistry,
-            configService,
-            sessionManager,
-            serviceContainer,
-            outputChannel
-        );
+        super(liveShare, asyncRegistry, disposableRegistry, configService, sessionManager, loggers, outputChannel);
     }
 
     public async dispose(): Promise<void> {
@@ -170,7 +162,7 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
         possibleSession: IJupyterSession | undefined,
         disposableRegistry: IDisposableRegistry,
         configService: IConfigurationService,
-        serviceContainer: IServiceContainer,
+        loggers: INotebookExecutionLogger[],
         notebookMetadata?: nbformat.INotebookMetadata,
         cancelToken?: CancellationToken
     ): Promise<INotebook> {
@@ -215,7 +207,7 @@ export class HostJupyterServer extends LiveShareParticipantHost(JupyterServerBas
                 disposableRegistry,
                 this,
                 info,
-                serviceContainer,
+                loggers,
                 resource,
                 identity,
                 this.getDisposedError.bind(this),

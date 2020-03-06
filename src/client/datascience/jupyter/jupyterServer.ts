@@ -18,13 +18,13 @@ import {
 import { createDeferred, Deferred } from '../../common/utils/async';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
-import { IServiceContainer } from '../../ioc/types';
 import {
     IConnection,
     IJupyterSession,
     IJupyterSessionManager,
     IJupyterSessionManagerFactory,
     INotebook,
+    INotebookExecutionLogger,
     INotebookServer,
     INotebookServerLaunchInfo
 } from '../types';
@@ -48,7 +48,7 @@ export class JupyterServerBase implements INotebookServer {
         private disposableRegistry: IDisposableRegistry,
         protected readonly configService: IConfigurationService,
         private sessionManagerFactory: IJupyterSessionManagerFactory,
-        private serviceContainer: IServiceContainer,
+        private loggers: INotebookExecutionLogger[],
         private jupyterOutputChannel: IOutputChannel
     ) {
         this.asyncRegistry.push(this);
@@ -111,7 +111,7 @@ export class JupyterServerBase implements INotebookServer {
             savedSession,
             this.disposableRegistry,
             this.configService,
-            this.serviceContainer,
+            this.loggers,
             notebookMetadata,
             cancelToken
         ).then(r => {
@@ -219,7 +219,7 @@ export class JupyterServerBase implements INotebookServer {
         _savedSession: IJupyterSession | undefined,
         _disposableRegistry: IDisposableRegistry,
         _configService: IConfigurationService,
-        _serviceContainer: IServiceContainer,
+        _loggers: INotebookExecutionLogger[],
         _notebookMetadata?: nbformat.INotebookMetadata,
         _cancelToken?: CancellationToken
     ): Promise<INotebook> {

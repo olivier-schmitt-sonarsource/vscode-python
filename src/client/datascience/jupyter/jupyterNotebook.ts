@@ -20,7 +20,6 @@ import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { PythonInterpreter } from '../../interpreter/contracts';
-import { IServiceContainer } from '../../ioc/types';
 import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
 import { generateCells } from '../cellFactory';
 import { CellMatcher } from '../cellMatcher';
@@ -28,10 +27,6 @@ import { CodeSnippits, Identifiers, Telemetry } from '../constants';
 import {
     CellState,
     ICell,
-    ICellHashLogger,
-    ICellHashProvider,
-    IGatherLogger,
-    IGatherProvider,
     IJupyterKernelSpec,
     IJupyterSession,
     INotebook,
@@ -175,7 +170,7 @@ export class JupyterNotebookBase implements INotebook {
         private disposableRegistry: IDisposableRegistry,
         private owner: INotebookServer,
         private launchInfo: INotebookServerLaunchInfo,
-        serviceContainer: IServiceContainer,
+        loggers: INotebookExecutionLogger[],
         resource: Resource,
         identity: Uri,
         private getDisposedError: () => Error,
@@ -193,7 +188,7 @@ export class JupyterNotebookBase implements INotebook {
         this.sessionStatusChanged = this.session.onSessionStatusChanged(statusChangeHandler);
         this._identity = identity;
         this._resource = resource;
-        this._loggers = serviceContainer.getAll<INotebookExecutionLogger>(INotebookExecutionLogger);
+        this._loggers = [...loggers];
         // Save our interpreter and don't change it. Later on when kernel changes
         // are possible, recompute it.
     }
@@ -621,22 +616,8 @@ export class JupyterNotebookBase implements INotebook {
         this.kernelChanged.fire(spec);
     }
 
-    public getGatherProvider(): IGatherProvider | undefined {
-        const gatherLogger: INotebookExecutionLogger | undefined = this._loggers.find(
-            (logger: INotebookExecutionLogger) => {
-                return (<IGatherLogger>logger).service !== undefined;
-            }
-        );
-        return gatherLogger ? (<IGatherLogger>gatherLogger).service() : undefined;
-    }
-
-    public getCellHashProvider(): ICellHashProvider | undefined {
-        const cellHashLogger: INotebookExecutionLogger | undefined = this._loggers.find(
-            (logger: INotebookExecutionLogger) => {
-                return (<ICellHashLogger>logger).getProvider !== undefined;
-            }
-        );
-        return cellHashLogger ? (<ICellHashLogger>cellHashLogger).getProvider() : undefined;
+    public getLoggers(): INotebookExecutionLogger[] {
+        return this._loggers;
     }
 
     private async initializeMatplotlib(cancelToken?: CancellationToken): Promise<void> {

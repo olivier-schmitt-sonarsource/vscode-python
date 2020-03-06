@@ -13,14 +13,17 @@ import { Identifiers } from '../constants';
 import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
 import {
     ICell,
+    IGatherLogger,
     IGatherProvider,
     IInteractiveWindowListener,
     IInteractiveWindowProvider,
     IJupyterExecution,
     INotebook,
     INotebookEditorProvider,
+    INotebookExecutionLogger,
     INotebookExporter
 } from '../types';
+import { GatherLogger } from './gatherLogger';
 
 @injectable()
 export class GatherListener implements IInteractiveWindowListener {
@@ -110,8 +113,21 @@ export class GatherListener implements IInteractiveWindowListener {
 
             // If we have an executing notebook, get its gather execution service.
             if (nb) {
-                this.gatherProvider = nb.getGatherProvider();
+                this.gatherProvider = this.getGatherProvider(nb);
             }
+        }
+    }
+    private getGatherProvider(nb: INotebook): IGatherProvider | undefined {
+        let gatherLogger: IGatherLogger | undefined;
+
+        nb.getLoggers().forEach((logger: INotebookExecutionLogger) => {
+            if (logger as IGatherLogger) {
+                gatherLogger = <IGatherLogger>logger;
+            }
+        });
+
+        if (gatherLogger) {
+            return gatherLogger.getProvider();
         }
     }
 

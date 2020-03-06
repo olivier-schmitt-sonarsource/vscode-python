@@ -517,7 +517,9 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.add<IDataScienceErrorHandler>(IDataScienceErrorHandler, DataScienceErrorHandler);
         this.serviceManager.add<IInstallationChannelManager>(IInstallationChannelManager, InstallationChannelManager);
         this.serviceManager.addSingleton<IJupyterVariables>(IJupyterVariables, JupyterVariables);
-        this.serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger);
+        this.serviceManager.addSingleton<IJupyterDebugger>(IJupyterDebugger, JupyterDebugger, undefined, [
+            ICellHashListener
+        ]);
         this.serviceManager.addSingleton<IDebugLocationTracker>(IDebugLocationTracker, DebugLocationTrackerFactory);
         this.serviceManager.addSingleton<INotebookEditorProvider>(INotebookEditorProvider, TestNativeEditorProvider);
         this.serviceManager.addSingleton<DataViewerDependencyService>(
@@ -623,14 +625,14 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
         this.serviceManager.add<IProtocolParser>(IProtocolParser, ProtocolParser);
         this.serviceManager.addSingleton<IDebugService>(IDebugService, MockDebuggerService);
         this.serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
-        this.serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger);
-        this.serviceManager.addBinding(ICellHashLogger, INotebookExecutionLogger);
-        this.serviceManager.addBinding(IJupyterDebugger, ICellHashListener);
+        this.serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger, undefined, [
+            INotebookExecutionLogger
+        ]);
         this.serviceManager.add<IGatherProvider>(IGatherProvider, GatherProvider);
-        this.serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger);
-        this.serviceManager.addBinding(IGatherLogger, INotebookExecutionLogger);
-        this.serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory);
-        this.serviceManager.addBinding(ICodeLensFactory, IInteractiveWindowListener);
+        this.serviceManager.add<IGatherLogger>(IGatherLogger, GatherLogger, undefined, [INotebookExecutionLogger]);
+        this.serviceManager.addSingleton<ICodeLensFactory>(ICodeLensFactory, CodeLensFactory, undefined, [
+            IInteractiveWindowListener
+        ]);
         this.serviceManager.addSingleton<IShellDetector>(IShellDetector, TerminalNameShellDetector);
         this.serviceManager.addSingleton<InterpeterHashProviderFactory>(
             InterpeterHashProviderFactory,

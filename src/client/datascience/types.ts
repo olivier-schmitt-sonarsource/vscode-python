@@ -140,8 +140,7 @@ export interface INotebook extends IAsyncDisposable {
     getKernelSpec(): IJupyterKernelSpec | LiveKernelModel | undefined;
     setKernelSpec(spec: IJupyterKernelSpec | LiveKernelModel, timeoutMS: number): Promise<void>;
     setInterpreter(interpeter: PythonInterpreter): void;
-    getGatherProvider(): IGatherProvider | undefined;
-    getCellHashProvider(): ICellHashProvider | undefined;
+    getLoggers(): INotebookExecutionLogger[];
 }
 
 export interface INotebookServerOptions {
@@ -171,7 +170,7 @@ export interface IGatherProvider {
 
 export const IGatherLogger = Symbol('IGatherLogger');
 export interface IGatherLogger extends INotebookExecutionLogger {
-    service(): IGatherProvider;
+    getProvider(): IGatherProvider;
 }
 
 export const IJupyterExecution = Symbol('IJupyterExecution');

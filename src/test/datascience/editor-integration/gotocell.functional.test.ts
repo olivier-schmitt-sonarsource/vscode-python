@@ -103,7 +103,6 @@ suite('DataScience gotocell tests', () => {
                     undefined,
                     Uri.parse(Identifiers.InteractiveWindowIdentity)
                 );
-                nb.getCellHashProvider();
                 const listener = (codeLensFactory as any) as IInteractiveWindowListener;
                 listener.onMessage(
                     InteractiveWindowMessages.NotebookExecutionActivated,
