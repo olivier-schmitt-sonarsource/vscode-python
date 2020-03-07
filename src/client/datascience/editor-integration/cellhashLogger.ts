@@ -24,11 +24,11 @@ export class CellHashLogger implements ICellHashLogger {
                 const stripped = providerObj.extractExecutableLines(cell);
                 if (stripped.length > 0 && stripped.find(s => s.trim().length > 0)) {
                     // When the user adds new code, we know the execution count is increasing
-                    providerObj.executionCount += 1;
+                    providerObj.incExecutionCount();
 
                     // Skip hash on unknown file though
                     if (cell.file !== Identifiers.EmptyFileName) {
-                        await providerObj.addCellHash(cell, providerObj.executionCount);
+                        await providerObj.addCellHash(cell, providerObj.getExecutionCount());
                     }
                 }
             }

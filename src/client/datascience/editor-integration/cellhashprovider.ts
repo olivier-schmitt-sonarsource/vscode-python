@@ -36,8 +36,6 @@ interface IRangedCellHash extends ICellHash {
 // hashes for cells.
 @injectable()
 export class CellHashProvider implements ICellHashProvider, IInteractiveWindowListener {
-    public readonly executionCount: number = 0;
-
     // tslint:disable-next-line: no-any
     private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{
         message: string;
@@ -45,6 +43,7 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
         payload: any;
     }>();
     // Map of file to Map of start line to actual hash
+    private executionCount: number = 0;
     private hashes: Map<string, IRangedCellHash[]> = new Map<string, IRangedCellHash[]>();
     private updateEventEmitter: EventEmitter<void> = new EventEmitter<void>();
 
@@ -233,6 +232,14 @@ export class CellHashProvider implements ICellHashProvider, IInteractiveWindowLi
                 this.updateEventEmitter.fire();
             }
         }
+    }
+
+    public getExecutionCount(): number {
+        return this.executionCount;
+    }
+
+    public incExecutionCount(): void {
+        this.executionCount += 1;
     }
 
     private onChangedDocument(e: TextDocumentChangeEvent) {

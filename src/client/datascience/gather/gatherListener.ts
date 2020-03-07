@@ -23,7 +23,6 @@ import {
     INotebookExecutionLogger,
     INotebookExporter
 } from '../types';
-import { GatherLogger } from './gatherLogger';
 
 @injectable()
 export class GatherListener implements IInteractiveWindowListener {

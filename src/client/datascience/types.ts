@@ -696,6 +696,8 @@ export const ICellHashProvider = Symbol('ICellHashProvider');
 export interface ICellHashProvider {
     updated: Event<void>;
     getHashes(): IFileHashes[];
+    getExecutionCount(): number;
+    incExecutionCount(): void;
 }
 
 export const ICellHashLogger = Symbol('ICellHashLogger');
