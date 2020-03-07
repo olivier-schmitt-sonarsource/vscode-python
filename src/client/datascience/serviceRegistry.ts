@@ -120,6 +120,7 @@ import {
 // tslint:disable-next-line: max-func-body-length
 export function registerTypes(serviceManager: IServiceManager) {
     const useCustomEditorApi = serviceManager.get<IApplicationEnvironment>(IApplicationEnvironment).packageJson.enableProposedApi;
+    serviceManager.addSingletonInstance<boolean>(UseCustomEditorApi, useCustomEditorApi);
 
     serviceManager.add<ICellHashLogger>(ICellHashLogger, CellHashLogger, undefined, [INotebookExecutionLogger]);
     serviceManager.add<ICellHashProvider>(ICellHashProvider, CellHashProvider);
@@ -188,7 +189,6 @@ export function registerTypes(serviceManager: IServiceManager) {
     serviceManager.addSingleton<KernelSwitcherCommand>(KernelSwitcherCommand, KernelSwitcherCommand);
     serviceManager.addSingleton<NotebookStarter>(NotebookStarter, NotebookStarter);
     serviceManager.addSingleton<ProgressReporter>(ProgressReporter, ProgressReporter);
-    serviceManager.addSingletonInstance<boolean>(UseCustomEditorApi, useCustomEditorApi);
 
     // Temporary code, to allow users to revert to the old behavior.
     const cfg = serviceManager.get<IWorkspaceService>(IWorkspaceService).getConfiguration('python.dataScience', undefined);
