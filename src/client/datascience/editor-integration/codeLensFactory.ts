@@ -135,13 +135,9 @@ export class CodeLensFactory implements ICodeLensFactory, IInteractiveWindowList
         }
     }
     private getCellHashProvider(nb: INotebook): ICellHashProvider | undefined {
-        let cellHashLogger: ICellHashLogger | undefined;
-
-        nb.getLoggers().forEach((logger: INotebookExecutionLogger) => {
-            if (logger as ICellHashLogger) {
-                cellHashLogger = <ICellHashLogger>logger;
-            }
-        });
+        const cellHashLogger = <ICellHashLogger>(
+            nb.getLoggers().find((logger: INotebookExecutionLogger) => <ICellHashLogger>logger)
+        );
 
         if (cellHashLogger) {
             return cellHashLogger.getProvider();

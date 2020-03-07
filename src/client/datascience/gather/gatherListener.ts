@@ -117,13 +117,9 @@ export class GatherListener implements IInteractiveWindowListener {
         }
     }
     private getGatherProvider(nb: INotebook): IGatherProvider | undefined {
-        let gatherLogger: IGatherLogger | undefined;
-
-        nb.getLoggers().forEach((logger: INotebookExecutionLogger) => {
-            if (logger as IGatherLogger) {
-                gatherLogger = <IGatherLogger>logger;
-            }
-        });
+        const gatherLogger = <IGatherLogger>(
+            nb.getLoggers().find((logger: INotebookExecutionLogger) => <IGatherLogger>logger)
+        );
 
         if (gatherLogger) {
             return gatherLogger.getProvider();
