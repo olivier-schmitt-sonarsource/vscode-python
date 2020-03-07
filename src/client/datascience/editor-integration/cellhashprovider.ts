@@ -36,7 +36,7 @@ interface IRangedCellHash extends ICellHash {
 // hashes for cells.
 @injectable()
 export class CellHashProvider implements ICellHashProvider, IInteractiveWindowListener {
-    public executionCount: number = 0;
+    public readonly executionCount: number = 0;
 
     // tslint:disable-next-line: no-any
     private postEmitter: EventEmitter<{ message: string; payload: any }> = new EventEmitter<{
