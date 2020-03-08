@@ -36,7 +36,7 @@ export class GatherLogger implements IGatherLogger {
         }
     }
 
-    public getProvider() {
+    public getGatherProvider() {
         return this.gather;
     }
 }

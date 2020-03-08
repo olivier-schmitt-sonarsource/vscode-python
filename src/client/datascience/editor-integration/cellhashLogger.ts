@@ -42,7 +42,7 @@ export class CellHashLogger implements ICellHashLogger {
         noop();
     }
 
-    public getProvider(): ICellHashProvider {
+    public getCellHashProvider(): ICellHashProvider {
         return this.provider;
     }
 }

@@ -170,7 +170,7 @@ export interface IGatherProvider {
 
 export const IGatherLogger = Symbol('IGatherLogger');
 export interface IGatherLogger extends INotebookExecutionLogger {
-    getProvider(): IGatherProvider;
+    getGatherProvider(): IGatherProvider;
 }
 
 export const IJupyterExecution = Symbol('IJupyterExecution');
@@ -702,7 +702,7 @@ export interface ICellHashProvider {
 
 export const ICellHashLogger = Symbol('ICellHashLogger');
 export interface ICellHashLogger extends INotebookExecutionLogger {
-    getProvider(): ICellHashProvider;
+    getCellHashProvider(): ICellHashProvider;
 }
 
 export interface IDebugLocation {
