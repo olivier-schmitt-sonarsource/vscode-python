@@ -32,17 +32,19 @@ export class GatherProvider implements IGatherProvider {
                 : false;
 
         if (this._enabled) {
-            // tslint:disable-next-line: no-require-imports
-            const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
+            try {
+                // tslint:disable-next-line: no-require-imports
+                const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
 
-            if (ppa) {
-                this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
-                this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
+                if (ppa) {
+                    this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
+                    this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
 
-                this.disposables.push(
-                    this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
-                );
-            } else {
+                    this.disposables.push(
+                        this.configService.getSettings(undefined).onDidChange(e => this.updateEnableGather(e))
+                    );
+                }
+            } catch (ex) {
                 traceInfo('Gathering tools could not be activated. Indicates build of VSIX was not');
             }
         }
