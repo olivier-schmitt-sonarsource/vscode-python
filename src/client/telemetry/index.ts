@@ -1889,4 +1889,14 @@ export interface IEventNamePropertyMapping {
      * @memberof IEventNamePropertyMapping
      */
     [Telemetry.KernelInvalid]: undefined | never;
+    /**
+     * Telemetry event sent when user clicks the gather button on a cell.
+     * @type {(undefined | never)}
+     * @memberof IEventNamePropertyMapping
+     */
+    [Telemetry.CellGathered]: undefined | never;
+    /**
+     * Telemetry event sent when gather slicing is completed (before notebook or script is shown)
+     */
+    [Telemetry.GatherSlicingCompleted]:;
 }

@@ -8,8 +8,10 @@ import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
+import { StopWatch } from '../../common/utils/stopWatch';
+import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
-import { Identifiers } from '../constants';
+import { Identifiers, Telemetry } from '../constants';
 import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
 import {
     ICell,
@@ -34,6 +36,7 @@ export class GatherListener implements IInteractiveWindowListener {
     }>();
     private notebookUri: Uri | undefined;
     private gatherProvider: IGatherProvider | undefined;
+    private gatherTimer: StopWatch | undefined;
 
     constructor(
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
@@ -87,7 +90,9 @@ export class GatherListener implements IInteractiveWindowListener {
         handler.bind(this)(args);
     }
 
+    @captureTelemetry(Telemetry.CellGathered, undefined, true)
     private doGather(payload: ICell): void {
+        this.gatherTimer = new StopWatch();
         this.gatherCodeInternal(payload).catch(err => {
             this.applicationShell.showErrorMessage(err);
         });
@@ -129,6 +134,7 @@ export class GatherListener implements IInteractiveWindowListener {
 
     private gatherCodeInternal = async (cell: ICell) => {
         const slicedProgram = this.gatherProvider ? this.gatherProvider.gatherCode(cell) : 'Gather internal error';
+        sendTelemetryEvent(Telemetry.GatherCompleted, this.gatherTimer);
 
         if (this.configService.getSettings().datascience.gatherToScript) {
             await this.showFile(slicedProgram, cell.file);
