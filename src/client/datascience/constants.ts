@@ -282,7 +282,6 @@ export enum Telemetry {
     JupyterCommandLineNonDefault = 'DS_INTERNAL.JUPYTER_CUSTOM_COMMAND_LINE',
     NewFileForInteractiveWindow = 'DS_INTERNAL.NEW_FILE_USED_IN_INTERACTIVE',
     KernelInvalid = 'DS_INTERNAL.INVALID_KERNEL_USED',
-    CellGathered = 'DATASCIENCE.CELL_GATHERED',
     GatherCompleted = 'DS_INTERNAL.GATHER_COMPLETED'
 }
 
