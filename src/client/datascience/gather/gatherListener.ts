@@ -172,8 +172,11 @@ export class GatherListener implements IInteractiveWindowListener {
             cells = cells.concat(generateCellsFromString(slicedProgram));
 
             const notebook = await this.jupyterExporter.translateToNotebook(cells);
-            const contents = JSON.stringify(notebook);
-            await this.ipynbProvider.createNew(contents);
+            if (notebook) {
+                notebook.metadata.gatheredNotebook = true;
+                const contents = JSON.stringify(notebook);
+                await this.ipynbProvider.createNew(contents);
+            }
         }
     }
 
