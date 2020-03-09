@@ -1897,6 +1897,15 @@ export interface IEventNamePropertyMapping {
     [Telemetry.CellGathered]: undefined | never;
     /**
      * Telemetry event sent when gather slicing is completed (before notebook or script is shown)
+     * @type {{
+     *         scope: 'err' | 'script' | 'notebook';
+     *     }}
+     * @memberof IEventNamePropertyMapping
      */
-    [Telemetry.GatherSlicingCompleted]:;
+    [Telemetry.GatherCompleted]: {
+        /**
+         * result indicates whether the gather was completed to a script, notebook or suffered an internal error.
+         */
+        result: 'err' | 'script' | 'notebook';
+    };
 }

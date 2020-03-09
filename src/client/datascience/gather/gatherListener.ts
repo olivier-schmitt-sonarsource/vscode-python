@@ -9,7 +9,7 @@ import { IConfigurationService } from '../../common/types';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
-import { captureTelemetry, sendTelemetryEvent } from '../../telemetry';
+import { sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
 import { Identifiers, Telemetry } from '../constants';
 import { IInteractiveWindowMapping, InteractiveWindowMessages } from '../interactive-common/interactiveWindowTypes';
@@ -90,14 +90,6 @@ export class GatherListener implements IInteractiveWindowListener {
         handler.bind(this)(args);
     }
 
-    @captureTelemetry(Telemetry.CellGathered, undefined, true)
-    private doGather(payload: ICell): void {
-        this.gatherTimer = new StopWatch();
-        this.gatherCodeInternal(payload).catch(err => {
-            this.applicationShell.showErrorMessage(err);
-        });
-    }
-
     private doInitGather(payload: string): void {
         this.initGather(payload).ignoreErrors();
     }
@@ -132,14 +124,29 @@ export class GatherListener implements IInteractiveWindowListener {
         }
     }
 
-    private gatherCodeInternal = async (cell: ICell) => {
-        const slicedProgram = this.gatherProvider ? this.gatherProvider.gatherCode(cell) : 'Gather internal error';
-        sendTelemetryEvent(Telemetry.GatherCompleted, this.gatherTimer);
+    private doGather(payload: ICell): void {
+        this.gatherCodeInternal(payload).catch(err => {
+            this.applicationShell.showErrorMessage(err);
+        });
+    }
 
-        if (this.configService.getSettings().datascience.gatherToScript) {
-            await this.showFile(slicedProgram, cell.file);
+    private gatherCodeInternal = async (cell: ICell) => {
+        this.gatherTimer = new StopWatch();
+
+        const slicedProgram = this.gatherProvider ? this.gatherProvider.gatherCode(cell) : 'Gather internal error';
+
+        if (!slicedProgram) {
+            sendTelemetryEvent(Telemetry.GatherCompleted, this.gatherTimer?.elapsedTime, { result: 'err' });
         } else {
-            await this.showNotebook(slicedProgram, cell);
+            const gatherToScript: boolean | undefined = this.configService.getSettings().datascience.gatherToScript;
+
+            if (gatherToScript) {
+                await this.showFile(slicedProgram, cell.file);
+                sendTelemetryEvent(Telemetry.GatherCompleted, this.gatherTimer?.elapsedTime, { result: 'script' });
+            } else {
+                await this.showNotebook(slicedProgram, cell);
+                sendTelemetryEvent(Telemetry.GatherCompleted, this.gatherTimer?.elapsedTime, { result: 'notebook' });
+            }
         }
     };
 
