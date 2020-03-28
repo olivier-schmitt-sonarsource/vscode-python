@@ -599,6 +599,7 @@
             },
             {
                 "command": "python.datascience.gatherquality",
+                "title": "DataScience.gatherQuality",
                 "category": "Python"
             }
         ],
@@ -1039,6 +1040,7 @@
                 },
                 {
                     "command": "python.datascience.gatherquality",
+                    "title": "%DataScience.gatherQuality%",
                     "category": "Python",
                     "when": "false"
                 }
