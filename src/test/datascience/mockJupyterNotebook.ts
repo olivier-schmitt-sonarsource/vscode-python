@@ -16,7 +16,7 @@ import {
     INotebook,
     INotebookCompletion,
     INotebookExecutionLogger,
-    INotebookServer,
+    INotebookProviderConnection,
     InterruptResult
 } from '../../client/datascience/types';
 import { PythonInterpreter } from '../../client/interpreter/contracts';
@@ -24,8 +24,8 @@ import { ServerStatus } from '../../datascience-ui/interactive-common/mainState'
 import { noop } from '../core';
 
 export class MockJupyterNotebook implements INotebook {
-    public get server(): INotebookServer {
-        return this.owner;
+    public get connection(): INotebookProviderConnection | undefined {
+        return this.providerConnection;
     }
 
     public get identity(): Uri {
@@ -53,7 +53,7 @@ export class MockJupyterNotebook implements INotebook {
     public onKernelRestarted = new EventEmitter<void>().event;
     private onStatusChangedEvent: EventEmitter<ServerStatus> | undefined;
 
-    constructor(private owner: INotebookServer) {
+    constructor(private providerConnection: INotebookProviderConnection | undefined) {
         noop();
     }
     public registerIOPubListener(
