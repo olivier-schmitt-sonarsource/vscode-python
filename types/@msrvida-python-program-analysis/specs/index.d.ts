@@ -12,4 +12,5 @@ export declare class ClassType {
     lookupMethod(name: string): any;
 }
 export declare function setSpecFolder(dir: string): void;
+export declare function addSpecFolder(dir: string): void;
 export declare let DefaultSpecs: Spec;

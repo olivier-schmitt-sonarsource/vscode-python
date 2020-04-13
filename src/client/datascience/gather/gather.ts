@@ -44,7 +44,7 @@ export class GatherProvider implements IGatherProvider {
                     // They might be in a user-specified location or installed to a location relative to this extension.
                     if (!ppa.DefaultSpecs.__builtins__) {
                         const customSpecPath = this.configService.getSettings().datascience.gatherSpecPath;
-                        ppa.setSpecFolder(
+                        ppa.addSpecFolder(
                             customSpecPath && customSpecPath !== ''
                                 ? customSpecPath
                                 : path.join(__dirname, 'gatherSpecs')
