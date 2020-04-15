@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as uuid from 'uuid/v4';
 import { IApplicationShell, ICommandManager } from '../../common/application/types';
 import { traceInfo } from '../../common/logger';
+import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService, IDisposableRegistry } from '../../common/types';
 import * as localize from '../../common/utils/localize';
 // tslint:disable-next-line: no-duplicate-imports
@@ -20,12 +21,14 @@ export class GatherProvider implements IGatherProvider {
     private _executionSlicer: ppatypes.ExecutionLogSlicer<ppatypes.Cell> | undefined;
     private dataflowAnalyzer: ppatypes.DataflowAnalyzer | undefined;
     private _enabled: boolean;
+    private initPromise: Promise<void>;
 
     constructor(
         @inject(IConfigurationService) private configService: IConfigurationService,
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
         @inject(IDisposableRegistry) private disposables: IDisposableRegistry,
-        @inject(ICommandManager) private commandManager: ICommandManager
+        @inject(ICommandManager) private commandManager: ICommandManager,
+        @inject(IFileSystem) private fileSystem: IFileSystem
     ) {
         // Disable gather if we're not running on insiders.
         this._enabled =
@@ -34,39 +37,12 @@ export class GatherProvider implements IGatherProvider {
                 ? true
                 : false;
 
-        if (this._enabled) {
-            try {
-                // tslint:disable-next-line: no-require-imports
-                const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
-
-                if (ppa) {
-                    // If the __builtins__ specs are not available for gather, then no specs have been found.
-                    // They might be in a user-specified location or installed to a location relative to this extension.
-                    if (!ppa.DefaultSpecs.__builtins__) {
-                        const customSpecPath = this.configService.getSettings().datascience.gatherSpecPath;
-                        ppa.addSpecFolder(
-                            customSpecPath && customSpecPath !== ''
-                                ? customSpecPath
-                                : path.join(__dirname, 'gatherSpecs')
-                        );
-                    }
-
-                    this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
-                    this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
-
-                    this.disposables.push(
-                        this.configService.getSettings(undefined).onDidChange((e) => this.updateEnableGather(e))
-                    );
-                }
-            } catch (ex) {
-                traceInfo(
-                    'Gathering tools could not be activated. Indicates build of VSIX could not find @msrvida/python-program-analysis'
-                );
-            }
-        }
+        this.initPromise = this.init();
     }
 
-    public logExecution(vscCell: IVscCell): void {
+    public async logExecution(vscCell: IVscCell): Promise<void> {
+        await this.initPromise;
+
         const gatherCell = convertVscToGatherCell(vscCell);
 
         if (gatherCell) {
@@ -77,6 +53,8 @@ export class GatherProvider implements IGatherProvider {
     }
 
     public async resetLog(): Promise<void> {
+        await this.initPromise;
+
         if (this._executionSlicer) {
             this._executionSlicer.reset();
         }
@@ -129,6 +107,48 @@ export class GatherProvider implements IGatherProvider {
             }
             if (item === 'Reload') {
                 this.commandManager.executeCommand('workbench.action.reloadWindow');
+            }
+        }
+    }
+
+    private async init(): Promise<void> {
+        if (this._enabled) {
+            try {
+                // tslint:disable-next-line: no-require-imports
+                const ppa = require('@msrvida/python-program-analysis') as typeof import('@msrvida-python-program-analysis');
+
+                if (ppa) {
+                    // If the __builtins__ specs are not available for gather, then no specs have been found. Look in a specific location relative
+                    // to the extension.
+                    if (!ppa.DefaultSpecs.__builtins__) {
+                        const defaultSpecFolder = path.join(__dirname, 'gatherSpecs');
+                        if (await this.fileSystem.directoryExists(defaultSpecFolder)) {
+                            ppa.setSpecFolder(defaultSpecFolder);
+                        }
+                    }
+
+                    // Check to see if any additional specs can be found.
+                    const additionalSpecPath = this.configService.getSettings().datascience.gatherSpecPath;
+                    if (additionalSpecPath && (await this.fileSystem.directoryExists(additionalSpecPath))) {
+                        ppa.addSpecFolder(additionalSpecPath);
+                    }
+
+                    // Only continue to initialize gather if we were successful in finding SOME specs.
+                    if (ppa.DefaultSpecs.keys && ppa.DefaultSpecs.keys.length > 0) {
+                        this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
+                        this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
+
+                        this.disposables.push(
+                            this.configService.getSettings(undefined).onDidChange((e) => this.updateEnableGather(e))
+                        );
+                    } else {
+                        this._enabled = false;
+                        traceInfo("Gather couldn't find any package specs. Disabling.");
+                    }
+                }
+            } catch (ex) {
+                this._enabled = false;
+                traceInfo(`Gathering tools could't be activated. ${ex.message}`);
             }
         }
     }

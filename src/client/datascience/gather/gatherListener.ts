@@ -8,7 +8,6 @@ import { PYTHON_LANGUAGE } from '../../common/constants';
 import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
 import * as localize from '../../common/utils/localize';
-import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
@@ -37,6 +36,7 @@ export class GatherListener implements IInteractiveWindowListener {
     private notebookUri: Uri | undefined;
     private gatherProvider: IGatherProvider | undefined;
     private gatherTimer: StopWatch | undefined;
+    private disposableNotebookSaved?: IDisposable;
 
     constructor(
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
@@ -49,7 +49,9 @@ export class GatherListener implements IInteractiveWindowListener {
     ) {}
 
     public dispose() {
-        noop();
+        if (this.disposableNotebookSaved) {
+            this.disposableNotebookSaved.dispose();
+        }
     }
 
     // tslint:disable-next-line: no-any
@@ -175,14 +177,13 @@ export class GatherListener implements IInteractiveWindowListener {
                 const contents = JSON.stringify(notebook);
                 const editor = await this.ipynbProvider.createNew(contents);
 
-                let disposable: IDisposable;
                 const handler = () => {
                     sendTelemetryEvent(Telemetry.GatheredNotebookSaved);
-                    if (disposable) {
-                        disposable.dispose();
+                    if (this.disposableNotebookSaved) {
+                        this.disposableNotebookSaved.dispose();
                     }
                 };
-                disposable = editor.saved(handler);
+                this.disposableNotebookSaved = editor.saved(handler);
             }
         }
     }

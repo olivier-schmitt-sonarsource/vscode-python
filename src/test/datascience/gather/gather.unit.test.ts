@@ -5,6 +5,7 @@
 import * as assert from 'assert';
 import * as TypeMoq from 'typemoq';
 import { IApplicationShell, ICommandManager } from '../../../client/common/application/types';
+import { IFileSystem } from '../../../client/common/platform/types';
 import {
     IConfigurationService,
     IDataScienceSettings,
@@ -90,6 +91,7 @@ suite('DataScience code gathering unit tests', () => {
     const configurationService = TypeMoq.Mock.ofType<IConfigurationService>();
     const pythonSettings = TypeMoq.Mock.ofType<IPythonSettings>();
     const dataScienceSettings = TypeMoq.Mock.ofType<IDataScienceSettings>();
+    const fileSystem = TypeMoq.Mock.ofType<IFileSystem>();
 
     dataScienceSettings.setup((d) => d.enabled).returns(() => true);
     dataScienceSettings.setup((d) => d.defaultCellMarker).returns(() => '# %%');
@@ -102,7 +104,8 @@ suite('DataScience code gathering unit tests', () => {
         configurationService.object,
         appShell.object,
         disposableRegistry.object,
-        commandManager.object
+        commandManager.object,
+        fileSystem.object
     );
 
     if (gatherProvider) {
