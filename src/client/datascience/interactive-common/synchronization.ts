@@ -132,6 +132,7 @@ const messageWithMessageTypes: MessageMapping<IInteractiveWindowMapping> & Messa
     [InteractiveWindowMessages.NotebookDirty]: MessageType.other,
     [InteractiveWindowMessages.NotebookExecutionActivated]: MessageType.other,
     [InteractiveWindowMessages.NotebookIdentity]: MessageType.other,
+    [InteractiveWindowMessages.NotebookClose]: MessageType.other,
     [InteractiveWindowMessages.NotebookRunAllCells]: MessageType.other,
     [InteractiveWindowMessages.NotebookRunSelectedCell]: MessageType.other,
     [InteractiveWindowMessages.OpenLink]: MessageType.other,
