@@ -490,7 +490,7 @@ gulp.task('adjustNpmrcForGather', async () => {
     const fs = require('fs');
     const filepath = './.npmrc';
     const data = fs.readFileSync(filepath);
-    if (data.toString('utf8').search('@msrvida') == -1) {
+    if (data.toString('utf8').search('@msrvida') === -1) {
         fs.writeFileSync(
             filepath,
             data +
