@@ -120,7 +120,7 @@ export class GatherProvider implements IGatherProvider {
                 if (ppa) {
                     // If the __builtins__ specs are not available for gather, then no specs have been found. Look in a specific location relative
                     // to the extension.
-                    if (!ppa.DefaultSpecs.__builtins__) {
+                    if (!ppa.getSpecs()) {
                         const defaultSpecFolder = path.join(__dirname, 'gatherSpecs');
                         if (await this.fileSystem.directoryExists(defaultSpecFolder)) {
                             ppa.setSpecFolder(defaultSpecFolder);
@@ -131,10 +131,12 @@ export class GatherProvider implements IGatherProvider {
                     const additionalSpecPath = this.configService.getSettings().datascience.gatherSpecPath;
                     if (additionalSpecPath && (await this.fileSystem.directoryExists(additionalSpecPath))) {
                         ppa.addSpecFolder(additionalSpecPath);
+                    } else {
+                        traceInfo(`Gather: additional spec folder ${additionalSpecPath} but not found.`);
                     }
 
                     // Only continue to initialize gather if we were successful in finding SOME specs.
-                    if (ppa.DefaultSpecs.keys && ppa.DefaultSpecs.keys.length > 0) {
+                    if (ppa.getSpecs()) {
                         this.dataflowAnalyzer = new ppa.DataflowAnalyzer();
                         this._executionSlicer = new ppa.ExecutionLogSlicer(this.dataflowAnalyzer);
 

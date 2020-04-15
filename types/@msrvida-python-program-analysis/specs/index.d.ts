@@ -13,4 +13,5 @@ export declare class ClassType {
 }
 export declare function setSpecFolder(dir: string): void;
 export declare function addSpecFolder(dir: string): void;
+export declare function getSpecs(): Spec | undefined;
 export declare let DefaultSpecs: Spec;
