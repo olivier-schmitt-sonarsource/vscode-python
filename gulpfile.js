@@ -486,19 +486,6 @@ gulp.task('uploadReleaseExtension', () =>
     uploadExtension(`ms-python-${process.env.TRAVIS_BRANCH || process.env.BUILD_SOURCEBRANCHNAME}.vsix`)
 );
 
-gulp.task('adjustNpmrcForGather', async () => {
-    const fs = require('fs');
-    const filepath = './.npmrc';
-    const data = fs.readFileSync(filepath);
-    if (data.toString('utf8').search('@msrvida') === -1) {
-        fs.writeFileSync(
-            filepath,
-            data +
-                'registry=https://pkgs.dev.azure.com/msresearch/_packaging/MSR-Python-Analysis/npm/registry/\nalways-auth=true'
-        );
-    }
-});
-
 function spawnAsync(command, args, env, rejectOnStdErr = false) {
     env = env || {};
     env = { ...process.env, ...env };

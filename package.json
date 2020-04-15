@@ -2883,8 +2883,6 @@
     },
     "scripts": {
         "package": "gulp clean && gulp prePublishBundle && vsce package -o ms-python-insiders.vsix",
-        "package-with-gather": "gulp clean && gulp adjustNpmrcForGather && npm install @msrvida/python-program-analysis && cross-env ENABLE_GATHER=1 gulp prePublishBundle && vsce package -o ms-python-insiders.vsix",
-        "authenticate-for-gather": "echo \"\n\nWindows - run this command: vsts-npm-auth -config .npmrc\nNon-windows - see instructions at https://dev.azure.com/msresearch/python-program-analysis/_packaging?_a=connect&feed=MSR-Python-Analysis\"",
         "compile": "tsc -watch -p ./",
         "compile-webviews-watch": "npm run build-ipywidgets && cross-env NODE_OPTIONS=--max_old_space_size=9096 webpack --config ./build/webpack/webpack.datascience-ui.config.js --watch",
         "build-ipywidgets": "npm run build-ipywidgets-clean && npm run build-ipywidgets-compile && npm run build-ipywidgets-webpack",
