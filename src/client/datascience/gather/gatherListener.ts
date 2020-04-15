@@ -8,6 +8,7 @@ import { PYTHON_LANGUAGE } from '../../common/constants';
 import { IFileSystem } from '../../common/platform/types';
 import { IConfigurationService } from '../../common/types';
 import * as localize from '../../common/utils/localize';
+import { noop } from '../../common/utils/misc';
 import { StopWatch } from '../../common/utils/stopWatch';
 import { sendTelemetryEvent } from '../../telemetry';
 import { generateCellsFromString } from '../cellFactory';
@@ -36,7 +37,6 @@ export class GatherListener implements IInteractiveWindowListener {
     private notebookUri: Uri | undefined;
     private gatherProvider: IGatherProvider | undefined;
     private gatherTimer: StopWatch | undefined;
-    private disposableNotebookSaved?: IDisposable;
 
     constructor(
         @inject(IApplicationShell) private applicationShell: IApplicationShell,
@@ -49,9 +49,7 @@ export class GatherListener implements IInteractiveWindowListener {
     ) {}
 
     public dispose() {
-        if (this.disposableNotebookSaved) {
-            this.disposableNotebookSaved.dispose();
-        }
+        noop();
     }
 
     // tslint:disable-next-line: no-any
@@ -177,13 +175,30 @@ export class GatherListener implements IInteractiveWindowListener {
                 const contents = JSON.stringify(notebook);
                 const editor = await this.ipynbProvider.createNew(contents);
 
-                const handler = () => {
+                let disposableNotebookSaved: IDisposable;
+                let disposableNotebookClosed: IDisposable;
+
+                const savedHandler = () => {
                     sendTelemetryEvent(Telemetry.GatheredNotebookSaved);
-                    if (this.disposableNotebookSaved) {
-                        this.disposableNotebookSaved.dispose();
+                    if (disposableNotebookSaved) {
+                        disposableNotebookSaved.dispose();
+                    }
+                    if (disposableNotebookClosed) {
+                        disposableNotebookClosed.dispose();
                     }
                 };
-                this.disposableNotebookSaved = editor.saved(handler);
+
+                const closedHandler = () => {
+                    if (disposableNotebookSaved) {
+                        disposableNotebookSaved.dispose();
+                    }
+                    if (disposableNotebookClosed) {
+                        disposableNotebookClosed.dispose();
+                    }
+                };
+
+                disposableNotebookSaved = editor.saved(savedHandler);
+                disposableNotebookClosed = editor.closed(closedHandler);
             }
         }
     }
