@@ -22,13 +22,14 @@ import { sleep } from '../../common/utils/async';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { captureTelemetry } from '../../telemetry';
-import { BaseJupyterSession, ISession, JupyterSessionStartError } from '../baseJupyterSession';
+import { BaseJupyterSession, JupyterSessionStartError } from '../baseJupyterSession';
 import { Identifiers, Telemetry } from '../constants';
 import { reportAction } from '../progress/decorator';
 import { ReportableAction } from '../progress/types';
-import { IJupyterConnection, IJupyterKernelSpec } from '../types';
+import { IJupyterConnection, IJupyterKernelSpec, IKernelSession } from '../types';
 import { JupyterInvalidKernelError } from './jupyterInvalidKernelError';
 import { JupyterWaitForIdleError } from './jupyterWaitForIdleError';
+import { JupyterWebSockets } from './jupyterWebSocket';
 import { KernelSelector } from './kernels/kernelSelector';
 import { LiveKernelModel } from './kernels/types';
 
@@ -106,8 +107,8 @@ export class JupyterSession extends BaseJupyterSession {
     public async createNewKernelSession(
         kernel: IJupyterKernelSpec | LiveKernelModel,
         timeoutMS: number
-    ): Promise<ISession> {
-        let newSession: ISession | undefined;
+    ): Promise<IKernelSession> {
+        let newSession: IKernelSession | undefined;
 
         try {
             // Don't immediately assume this kernel is valid. Try creating a session with it first.
@@ -127,20 +128,31 @@ export class JupyterSession extends BaseJupyterSession {
             throw new JupyterInvalidKernelError(kernel);
         }
 
+        // Add on the kernel sock information
+        newSession.kernelSocketInformation = {
+            socket: JupyterWebSockets.get(newSession.id),
+            options: {
+                clientId: newSession.kernel.clientId,
+                id: newSession.kernel.id,
+                model: { ...newSession.kernel.model },
+                userName: newSession.kernel.username
+            }
+        };
+
         return newSession;
     }
 
     protected async createRestartSession(
         kernelSpec: IJupyterKernelSpec | LiveKernelModel | undefined,
-        session: ISession,
+        session: IKernelSession,
         cancelToken?: CancellationToken
-    ): Promise<ISession> {
+    ): Promise<IKernelSession> {
         // We need all of the above to create a restart session
         if (!session || !this.contentsManager || !this.sessionManager) {
             throw new Error(localize.DataScience.sessionDisposed());
         }
 
-        let result: ISession | undefined;
+        let result: IKernelSession | undefined;
         let tryCount = 0;
         // tslint:disable-next-line: no-any
         let exception: any;
@@ -175,7 +187,7 @@ export class JupyterSession extends BaseJupyterSession {
     }
 
     @captureTelemetry(Telemetry.WaitForIdleJupyter, undefined, true)
-    private async waitForIdleOnSession(session: ISession | undefined, timeout: number): Promise<void> {
+    private async waitForIdleOnSession(session: IKernelSession | undefined, timeout: number): Promise<void> {
         if (session && session.kernel) {
             traceInfo(`Waiting for idle on (kernel): ${session.kernel.id} -> ${session.kernel.status}`);
             // tslint:disable-next-line: no-any
@@ -197,14 +209,14 @@ export class JupyterSession extends BaseJupyterSession {
                 }
             };
 
-            let statusChangeHandler: Slot<ISession, Kernel.Status> | undefined;
+            let statusChangeHandler: Slot<IKernelSession, Kernel.Status> | undefined;
             const kernelStatusChangedPromise = new Promise((resolve, reject) => {
-                statusChangeHandler = (_: ISession, e: Kernel.Status) => statusHandler(resolve, reject, e);
+                statusChangeHandler = (_: IKernelSession, e: Kernel.Status) => statusHandler(resolve, reject, e);
                 session.statusChanged.connect(statusChangeHandler);
             });
-            let kernelChangedHandler: Slot<ISession, Session.IKernelChangedArgs> | undefined;
+            let kernelChangedHandler: Slot<IKernelSession, Session.IKernelChangedArgs> | undefined;
             const statusChangedPromise = new Promise((resolve, reject) => {
-                kernelChangedHandler = (_: ISession, e: Session.IKernelChangedArgs) =>
+                kernelChangedHandler = (_: IKernelSession, e: Session.IKernelChangedArgs) =>
                     statusHandler(resolve, reject, e.newValue?.status);
                 session.kernelChanged.connect(kernelChangedHandler);
             });
@@ -253,7 +265,7 @@ export class JupyterSession extends BaseJupyterSession {
         kernelSpec: IJupyterKernelSpec | LiveKernelModel | undefined,
         contentsManager: ContentsManager,
         cancelToken?: CancellationToken
-    ): Promise<Session.ISession> {
+    ): Promise<IKernelSession> {
         // Create a temporary notebook for this session.
         this.notebookFiles.push(await contentsManager.newUntitled({ type: 'notebook' }));
 

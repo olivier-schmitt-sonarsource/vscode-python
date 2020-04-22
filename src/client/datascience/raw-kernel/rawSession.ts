@@ -4,7 +4,7 @@ import type { Kernel, KernelMessage, ServerConnection, Session } from '@jupyterl
 import type { ISignal, Signal } from '@phosphor/signaling';
 import * as uuid from 'uuid/v4';
 import { IKernelProcess } from '../kernel-launcher/types';
-import { IJMPConnection } from '../types';
+import { IJMPConnection, IKernelSession } from '../types';
 import { RawKernel } from './rawKernel';
 
 /*
@@ -12,7 +12,7 @@ RawSession class implements a jupyterlab ISession object
 This provides enough of the ISession interface so that our direct
 ZMQ Kernel connection can pretend to be a jupyterlab Session
 */
-export class RawSession implements Session.ISession {
+export class RawSession implements IKernelSession {
     public isDisposed: boolean = false;
 
     // Note, ID is the ID of this session
@@ -24,7 +24,7 @@ export class RawSession implements Session.ISession {
     private readonly _statusChanged: Signal<this, Kernel.Status>;
 
     // RawSession owns the lifetime of the kernel process and will dispose it
-    constructor(connection: IJMPConnection, private kernelProcess: IKernelProcess) {
+    constructor(connection: IJMPConnection, public kernelProcess: IKernelProcess) {
         // tslint:disable-next-line: no-require-imports
         const singalling = require('@phosphor/signaling') as typeof import('@phosphor/signaling');
         this._statusChanged = new singalling.Signal<this, Kernel.Status>(this);

@@ -350,6 +350,13 @@ export interface IJupyterSession extends IAsyncDisposable {
     removeMessageHook(msgId: string, hook: (msg: KernelMessage.IIOPubMessage) => boolean | PromiseLike<boolean>): void;
 }
 
+export type IKernelSession = Session.ISession & {
+    // Whether this is a remote session that we attached to.
+    isRemoteSession?: boolean;
+    // Socket information used for hooking messages to the kernel
+    kernelSocketInformation?: KernelSocketInformation;
+};
+
 export const IJupyterSessionManagerFactory = Symbol('IJupyterSessionManagerFactory');
 export interface IJupyterSessionManagerFactory {
     create(connInfo: IJupyterConnection, failOnPassword?: boolean): Promise<IJupyterSessionManager>;
