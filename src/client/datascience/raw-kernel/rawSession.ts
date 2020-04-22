@@ -4,7 +4,7 @@ import type { Kernel, KernelMessage, ServerConnection, Session } from '@jupyterl
 import type { ISignal, Signal } from '@phosphor/signaling';
 import * as uuid from 'uuid/v4';
 import { IKernelProcess } from '../kernel-launcher/types';
-import { IJMPConnection, IKernelSession } from '../types';
+import { IJMPConnection, ISessionWithSocket } from '../types';
 import { RawKernel } from './rawKernel';
 
 /*
@@ -12,7 +12,7 @@ RawSession class implements a jupyterlab ISession object
 This provides enough of the ISession interface so that our direct
 ZMQ Kernel connection can pretend to be a jupyterlab Session
 */
-export class RawSession implements IKernelSession {
+export class RawSession implements ISessionWithSocket {
     public isDisposed: boolean = false;
 
     // Note, ID is the ID of this session
@@ -35,7 +35,7 @@ export class RawSession implements IKernelSession {
         this._clientID = uuid();
 
         // Connect our kernel and hook up status changes
-        this._kernel = new RawKernel(connection, this._clientID);
+        this._kernel = new RawKernel(connection, kernelProcess.kernelSpec.name, this._clientID);
         this._kernel.statusChanged.connect(this.onKernelStatus, this);
     }
 

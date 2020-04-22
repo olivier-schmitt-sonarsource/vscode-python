@@ -15,7 +15,7 @@ import { IKernelConnection, IKernelLauncher } from '../kernel-launcher/types';
 import { reportAction } from '../progress/decorator';
 import { ReportableAction } from '../progress/types';
 import { RawSession } from '../raw-kernel/rawSession';
-import { IJMPConnection, IJupyterKernelSpec, IKernelSession } from '../types';
+import { IJMPConnection, IJupyterKernelSpec, ISessionWithSocket } from '../types';
 
 /* 
 RawJupyterSession is the implementation of IJupyterSession that instead of
@@ -100,7 +100,7 @@ export class RawJupyterSession extends BaseJupyterSession {
     public async createNewKernelSession(
         kernel: IJupyterKernelSpec | LiveKernelModel,
         _timeoutMS: number
-    ): Promise<IKernelSession> {
+    ): Promise<ISessionWithSocket> {
         if (!this.resource || !kernel || 'session' in kernel) {
             // Don't allow for connecting to a LiveKernelModel
             throw new Error(localize.DataScience.sessionDisposed());
@@ -109,7 +109,7 @@ export class RawJupyterSession extends BaseJupyterSession {
         return this.startRawSession(this.resource, kernel);
     }
 
-    protected set session(session: IKernelSession | undefined) {
+    protected set session(session: ISessionWithSocket | undefined) {
         super.session = session;
 
         // When setting the session clear our current exit handler and hook up to the
@@ -137,9 +137,9 @@ export class RawJupyterSession extends BaseJupyterSession {
     }
     protected async createRestartSession(
         kernelSpec: IJupyterKernelSpec | LiveKernelModel | undefined,
-        _session: IKernelSession,
+        _session: ISessionWithSocket,
         _cancelToken?: CancellationToken
-    ): Promise<IKernelSession> {
+    ): Promise<ISessionWithSocket> {
         if (!this.resource || !kernelSpec || 'session' in kernelSpec) {
             // Need to have connected before restarting and can't use a LiveKernelModel
             throw new Error(localize.DataScience.sessionDisposed());
