@@ -90,11 +90,8 @@ export class JupyterSession extends BaseJupyterSession {
         }
 
         // Start a new session
-        this.session = await this.createSession(
-            this.serverSettings,
-            this.kernelSpec,
-            this.contentsManager,
-            cancelToken
+        this.setSession(
+            await this.createSession(this.serverSettings, this.kernelSpec, this.contentsManager, cancelToken)
         );
 
         // Listen for session status changes

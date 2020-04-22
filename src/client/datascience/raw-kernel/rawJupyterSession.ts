@@ -57,10 +57,11 @@ export class RawJupyterSession extends BaseJupyterSession {
     ): Promise<IJupyterKernelSpec | undefined> {
         // Save the resource that we connect with
         this.resource = resource;
+        let newSession: RawSession | null | CancellationError = null;
         try {
             // Try to start up our raw session, allow for cancellation or timeout
             // Notebook Provider level will handle the thrown error
-            const newSession = await waitForPromise(
+            newSession = await waitForPromise(
                 Promise.race([
                     this.startRawSession(resource, kernelName),
                     createPromiseFromCancellation({
@@ -81,7 +82,7 @@ export class RawJupyterSession extends BaseJupyterSession {
                 throw new Error(localize.DataScience.sessionDisposed());
             } else {
                 traceInfo('Raw session started and connected');
-                this.session = newSession;
+                this.setSession(newSession);
                 this.kernelSpec = newSession.kernelProcess?.kernelSpec;
             }
         } catch (error) {
@@ -94,7 +95,7 @@ export class RawJupyterSession extends BaseJupyterSession {
         this.startRestartSession();
 
         this.connected = true;
-        return (this.session as RawSession).kernelProcess.kernelSpec;
+        return (newSession as RawSession).kernelProcess.kernelSpec;
     }
 
     public async createNewKernelSession(
@@ -109,8 +110,8 @@ export class RawJupyterSession extends BaseJupyterSession {
         return this.startRawSession(this.resource, kernel);
     }
 
-    protected set session(session: ISessionWithSocket | undefined) {
-        super.session = session;
+    protected setSession(session: ISessionWithSocket | undefined) {
+        super.setSession(session);
 
         // When setting the session clear our current exit handler and hook up to the
         // new session process

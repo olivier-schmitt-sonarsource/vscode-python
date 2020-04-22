@@ -5,7 +5,7 @@ import { Slot } from '@phosphor/signaling';
 import { assert, expect } from 'chai';
 import { anything, instance, mock, verify, when } from 'ts-mockito';
 import * as uuid from 'uuid/v4';
-import { RawKernel } from '../../../client/datascience/raw-kernel/rawKernel';
+import { createRawKernel, RawKernel } from '../../../client/datascience/raw-kernel/rawKernel';
 import { IJMPConnection } from '../../../client/datascience/types';
 import { MockJMPConnection } from './mockJMP';
 
@@ -19,7 +19,7 @@ suite('Data Science - RawKernel', () => {
             jmpConnection = mock<IJMPConnection>();
             when(jmpConnection.connect(anything())).thenResolve();
             when(jmpConnection.subscribe(anything())).thenReturn();
-            rawKernel = new RawKernel(instance(jmpConnection), 'python3', uuid());
+            rawKernel = createRawKernel(instance(jmpConnection), 'python3', uuid());
         });
 
         test('RawKernel connect should connect and subscribe to JMP', async () => {
@@ -84,7 +84,7 @@ suite('Data Science - RawKernel', () => {
 
         setup(() => {
             mockJmpConnection = new MockJMPConnection();
-            rawKernel = new RawKernel(mockJmpConnection, 'python3', uuid());
+            rawKernel = createRawKernel(mockJmpConnection, 'python3', uuid());
         });
 
         test('RawKernel executeRequest messages', async () => {

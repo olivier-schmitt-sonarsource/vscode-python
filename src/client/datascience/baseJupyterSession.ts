@@ -40,28 +40,6 @@ export abstract class BaseJupyterSession implements IJupyterSession {
     protected get session(): ISessionWithSocket | undefined {
         return this._session;
     }
-    protected set session(session: ISessionWithSocket | undefined) {
-        const oldSession = this._session;
-        this._session = session;
-
-        // If we have a new session, then emit the new kernel connection information.
-        if (session && oldSession !== session) {
-            if (!session.kernelSocketInformation) {
-                traceError(`Unable to find WebSocket connetion assocated with kerne ${session.kernel.id}`);
-                this._kernelSocket.next(undefined);
-            } else {
-                this._kernelSocket.next({
-                    options: {
-                        clientId: session.kernel.clientId,
-                        id: session.kernel.id,
-                        model: { ...session.kernel.model },
-                        userName: session.kernel.username
-                    },
-                    socket: session.kernelSocketInformation.socket
-                });
-            }
-        }
-    }
     protected kernelSpec: IJupyterKernelSpec | LiveKernelModel | undefined;
     public get kernelSocket(): Observable<KernelSocketInformation | undefined> {
         return this._kernelSocket;
@@ -119,7 +97,7 @@ export abstract class BaseJupyterSession implements IJupyterSession {
             } catch {
                 noop();
             }
-            this.session = undefined;
+            this.setSession(undefined);
             this.restartSessionPromise = undefined;
         }
         if (this.onStatusChangedEvent) {
@@ -160,13 +138,13 @@ export abstract class BaseJupyterSession implements IJupyterSession {
         this.kernelSpec = kernel;
 
         // Save the new session
-        this.session = newSession;
+        this.setSession(newSession);
 
         // Listen for session status changes
         this.session?.statusChanged.connect(this.statusHandler); // NOSONAR
 
         // Start the restart session promise too.
-        this.restartSessionPromise = this.createRestartSession(kernel, this.session);
+        this.restartSessionPromise = this.createRestartSession(kernel, newSession);
     }
 
     public async restart(_timeout: number): Promise<void> {
@@ -189,7 +167,7 @@ export abstract class BaseJupyterSession implements IJupyterSession {
             const oldStatusHandler = this.statusHandler;
 
             // Just switch to the other session. It should already be ready
-            this.session = await this.restartSessionPromise;
+            this.setSession(await this.restartSessionPromise);
             if (!this.session) {
                 throw new Error(localize.DataScience.sessionDisposed());
             }
@@ -329,6 +307,29 @@ export abstract class BaseJupyterSession implements IJupyterSession {
         timeoutMS: number
     ): Promise<ISessionWithSocket>;
 
+    // Changes the current session.
+    protected setSession(session: ISessionWithSocket | undefined) {
+        const oldSession = this._session;
+        this._session = session;
+
+        // If we have a new session, then emit the new kernel connection information.
+        if (session && oldSession !== session) {
+            if (!session.kernelSocketInformation) {
+                traceError(`Unable to find WebSocket connection assocated with kerne ${session.kernel.id}`);
+                this._kernelSocket.next(undefined);
+            } else {
+                this._kernelSocket.next({
+                    options: {
+                        clientId: session.kernel.clientId,
+                        id: session.kernel.id,
+                        model: { ...session.kernel.model },
+                        userName: session.kernel.username
+                    },
+                    socket: session.kernelSocketInformation.socket
+                });
+            }
+        }
+    }
     protected async shutdownSession(
         session: ISessionWithSocket | undefined,
         statusHandler: Slot<ISessionWithSocket, Kernel.Status> | undefined

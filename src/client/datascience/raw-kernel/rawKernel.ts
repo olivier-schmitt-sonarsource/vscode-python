@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 import type { Kernel, KernelMessage, ServerConnection } from '@jupyterlab/services';
 import * as uuid from 'uuid/v4';
-import { KernelSocketWrapper } from '../kernelSocketWrapper';
+import { IWebSocketLike, KernelSocketWrapper } from '../kernelSocketWrapper';
 import { IJMPConnection, IKernelSocket } from '../types';
 import { RawSocket } from './rawSocket';
 
@@ -65,41 +65,13 @@ export class RawKernel implements Kernel.IKernel {
     public get isDisposed(): boolean {
         return this.realKernel.isDisposed;
     }
-    private realKernel: Kernel.IKernel;
-    constructor(connection: IJMPConnection, name: string, clientId: string) {
-        // Dummy websocket we give to the underlying real kernel
-        let socketInstance: any;
-        class RawSocketWrapper extends KernelSocketWrapper(RawSocket) {
-            constructor() {
-                super(connection, clientId);
-                socketInstance = this;
-            }
-        }
-
-        // Remap the server settings for the real kernel to use our dummy websocket
-        // tslint:disable-next-line: no-require-imports
-        const jupyterLab = require('@jupyterlab/services') as typeof import('@jupyterlab/services');
-        const settings = jupyterLab.ServerConnection.makeSettings({
-            WebSocket: RawSocketWrapper as any,
-            wsUrl: 'BOGUS_PVSC'
-        });
-
-        // Then create the real kernel
-        // tslint:disable-next-line: no-require-imports
-        const defaultImport = require('@jupyterlab/services/lib/kernel/default') as typeof import('@jupyterlab/services/lib/kernel/default');
-        this.realKernel = new defaultImport.DefaultKernel(
-            {
-                name,
-                serverSettings: settings,
-                clientId,
-                handleComms: true
-            },
-            uuid()
-        );
-
+    constructor(private realKernel: Kernel.IKernel, socket: IKernelSocket & IWebSocketLike) {
         // Save this raw socket as our kernel socket. It will be
         // used to watch and respond to kernel messages.
-        this.socket = socketInstance;
+        this.socket = socket;
+
+        // Pretend like an open occurred. This will prime the real kernel to be connected
+        socket.emit('open');
     }
 
     public shutdown(): Promise<void> {
@@ -221,4 +193,39 @@ export class RawKernel implements Kernel.IKernel {
     ): void {
         this.realKernel.removeMessageHook(msgId, hook);
     }
+}
+
+export function createRawKernel(connection: IJMPConnection, name: string, clientId: string): RawKernel {
+    // Dummy websocket we give to the underlying real kernel
+    let socketInstance: any;
+    class RawSocketWrapper extends KernelSocketWrapper(RawSocket) {
+        constructor() {
+            super(connection, clientId);
+            socketInstance = this;
+        }
+    }
+
+    // Remap the server settings for the real kernel to use our dummy websocket
+    // tslint:disable-next-line: no-require-imports
+    const jupyterLab = require('@jupyterlab/services') as typeof import('@jupyterlab/services');
+    const settings = jupyterLab.ServerConnection.makeSettings({
+        WebSocket: RawSocketWrapper as any,
+        wsUrl: 'BOGUS_PVSC'
+    });
+
+    // Then create the real kernel
+    // tslint:disable-next-line: no-require-imports
+    const defaultImport = require('@jupyterlab/services/lib/kernel/default') as typeof import('@jupyterlab/services/lib/kernel/default');
+    const realKernel = new defaultImport.DefaultKernel(
+        {
+            name,
+            serverSettings: settings,
+            clientId,
+            handleComms: true
+        },
+        uuid()
+    );
+
+    // Use this real kernel in result.
+    return new RawKernel(realKernel, socketInstance);
 }

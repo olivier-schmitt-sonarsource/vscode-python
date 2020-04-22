@@ -18,6 +18,7 @@ import { IKernelConnection, IKernelFinder } from '../../client/datascience/kerne
 import { IJMPConnection, IJupyterKernelSpec } from '../../client/datascience/types';
 import { IInterpreterService, PythonInterpreter } from '../../client/interpreter/contracts';
 import { PYTHON_PATH, sleep, waitForCondition } from '../common';
+import { MockOutputChannel } from '../mockClasses';
 import { DataScienceIocContainer } from './dataScienceIocContainer';
 import { MockKernelFinder } from './mockKernelFinder';
 
@@ -36,7 +37,13 @@ suite('DataScience - Kernel Launcher', () => {
         const executionFactory = ioc.serviceContainer.get<IPythonExecutionFactory>(IPythonExecutionFactory);
         const file = ioc.serviceContainer.get<IFileSystem>(IFileSystem);
         const interpreterService = ioc.serviceContainer.get<IInterpreterService>(IInterpreterService);
-        kernelLauncher = new KernelLauncher(kernelFinder, executionFactory, interpreterService, file);
+        kernelLauncher = new KernelLauncher(
+            kernelFinder,
+            executionFactory,
+            interpreterService,
+            file,
+            new MockOutputChannel('JUPYTER')
+        );
 
         pythonInterpreter = await ioc.getJupyterCapableInterpreter();
         resource = Uri.file(PYTHON_PATH);

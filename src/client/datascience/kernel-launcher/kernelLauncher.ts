@@ -3,7 +3,7 @@
 'use strict';
 
 import { ChildProcess } from 'child_process';
-import { inject, injectable } from 'inversify';
+import { inject, injectable, named } from 'inversify';
 import * as portfinder from 'portfinder';
 import { promisify } from 'util';
 import * as uuid from 'uuid/v4';
@@ -12,10 +12,12 @@ import { InterpreterUri } from '../../common/installer/types';
 import { traceInfo, traceWarning } from '../../common/logger';
 import { IFileSystem, TemporaryFile } from '../../common/platform/types';
 import { IPythonExecutionFactory } from '../../common/process/types';
+import { IOutputChannel } from '../../common/types';
 import { createDeferred, Deferred } from '../../common/utils/async';
 import * as localize from '../../common/utils/localize';
 import { noop } from '../../common/utils/misc';
 import { IInterpreterService } from '../../interpreter/contracts';
+import { JUPYTER_OUTPUT_CHANNEL } from '../constants';
 import { IJupyterKernelSpec } from '../types';
 import { findIndexOfConnectionFile } from './kernelFinder';
 import { IKernelConnection, IKernelFinder, IKernelLauncher, IKernelProcess } from './types';
@@ -49,6 +51,7 @@ class KernelProcess implements IKernelProcess {
         private executionFactory: IPythonExecutionFactory,
         private interpreterService: IInterpreterService,
         private file: IFileSystem,
+        private outputChannel: IOutputChannel,
         private _connection: IKernelConnection,
         private _kernelSpec: IJupyterKernelSpec
     ) {
@@ -82,11 +85,15 @@ class KernelProcess implements IKernelProcess {
             interpreter: matchingInterpreter
         });
 
+        this.outputChannel.appendLine(localize.DataScience.connectingIPyKernel());
+
         // Then launch that process, also merging in the environment in the kernelspec
         const exeObs = executionService.execObservable(args, { extraVariables: this._kernelSpec.env });
 
         if (exeObs.proc) {
             exeObs.proc!.on('exit', (exitCode) => {
+                // tslint:disable-next-line: messages-must-be-localized
+                this.outputChannel.appendLine(`Kernel died with exit code: ${exitCode}`);
                 traceInfo('KernelProcess Exit', `Exit - ${exitCode}`);
                 if (!this.readyPromise.completed) {
                     this.readyPromise.reject(new Error(localize.DataScience.rawKernelProcessExitBeforeConnect()));
@@ -100,13 +107,18 @@ class KernelProcess implements IKernelProcess {
         exeObs.out.subscribe((output) => {
             if (output.source === 'stderr') {
                 traceWarning(`StdErr from Kernel Process ${output.out}`);
+                this.outputChannel.appendLine(output.out);
             } else {
                 // Search for --existing this is the message that will indicate that our kernel is actually
                 // up and started from stdout
                 //    To connect another client to this kernel, use:
                 //    --existing /var/folders/q7/cn8fg6s94fgdcl0h7rbxldf00000gn/T/tmp-16231TOL2dgBoWET1.json
+                // Is this going to work with non-python?
                 if (!this.readyPromise.completed && output.out.includes('--existing')) {
                     this.readyPromise.resolve();
+                    this.outputChannel.appendLine(localize.DataScience.connectedToIPyKernel());
+                } else if (this.readyPromise.resolved) {
+                    this.outputChannel.appendLine(output.out);
                 }
                 traceInfo(output.out);
             }
@@ -133,7 +145,8 @@ export class KernelLauncher implements IKernelLauncher {
         @inject(IKernelFinder) private kernelFinder: IKernelFinder,
         @inject(IPythonExecutionFactory) private executionFactory: IPythonExecutionFactory,
         @inject(IInterpreterService) private interpreterService: IInterpreterService,
-        @inject(IFileSystem) private file: IFileSystem
+        @inject(IFileSystem) private file: IFileSystem,
+        @inject(IOutputChannel) @named(JUPYTER_OUTPUT_CHANNEL) private jupyterOutput: IOutputChannel
     ) {}
 
     public async launch(
@@ -154,6 +167,7 @@ export class KernelLauncher implements IKernelLauncher {
             this.executionFactory,
             this.interpreterService,
             this.file,
+            this.jupyterOutput,
             connection,
             kernelSpec
         );

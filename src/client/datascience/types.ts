@@ -354,7 +354,7 @@ export type ISessionWithSocket = Session.ISession & {
     // Whether this is a remote session that we attached to.
     isRemoteSession?: boolean;
     // Socket information used for hooking messages to the kernel
-    kernelSocketInformation?: KernelSocketInformation;
+    kernelSocketInformation?: KernelSocketInformation | undefined;
 };
 
 export const IJupyterSessionManagerFactory = Symbol('IJupyterSessionManagerFactory');
@@ -1134,5 +1134,6 @@ export const IJMPConnection = Symbol('IJMPConnection');
 export interface IJMPConnection extends IDisposable {
     connect(connectInfo: IJMPConnectionInfo): Promise<void>;
     sendMessage(message: KernelMessage.IMessage): void;
-    subscribe(handlerFunc: (message: KernelMessage.IMessage) => void): void;
+    // tslint:disable-next-line: no-any
+    subscribe(handlerFunc: (message: KernelMessage.IMessage) => void, errorHandler?: (exc: any) => void): void;
 }

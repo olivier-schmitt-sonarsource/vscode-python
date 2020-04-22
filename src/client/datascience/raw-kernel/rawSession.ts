@@ -4,8 +4,8 @@ import type { Kernel, KernelMessage, ServerConnection, Session } from '@jupyterl
 import type { ISignal, Signal } from '@phosphor/signaling';
 import * as uuid from 'uuid/v4';
 import { IKernelProcess } from '../kernel-launcher/types';
-import { IJMPConnection, ISessionWithSocket } from '../types';
-import { RawKernel } from './rawKernel';
+import { IJMPConnection, ISessionWithSocket, KernelSocketInformation } from '../types';
+import { createRawKernel, RawKernel } from './rawKernel';
 
 /*
 RawSession class implements a jupyterlab ISession object
@@ -26,8 +26,8 @@ export class RawSession implements ISessionWithSocket {
     // RawSession owns the lifetime of the kernel process and will dispose it
     constructor(connection: IJMPConnection, public kernelProcess: IKernelProcess) {
         // tslint:disable-next-line: no-require-imports
-        const singalling = require('@phosphor/signaling') as typeof import('@phosphor/signaling');
-        this._statusChanged = new singalling.Signal<this, Kernel.Status>(this);
+        const singaling = require('@phosphor/signaling') as typeof import('@phosphor/signaling');
+        this._statusChanged = new singaling.Signal<this, Kernel.Status>(this);
         // Unique ID for this session instance
         this._id = uuid();
 
@@ -35,7 +35,7 @@ export class RawSession implements ISessionWithSocket {
         this._clientID = uuid();
 
         // Connect our kernel and hook up status changes
-        this._kernel = new RawKernel(connection, kernelProcess.kernelSpec.name, this._clientID);
+        this._kernel = createRawKernel(connection, kernelProcess.kernelSpec.name, this._clientID);
         this._kernel.statusChanged.connect(this.onKernelStatus, this);
     }
 
@@ -56,6 +56,18 @@ export class RawSession implements ISessionWithSocket {
     // Return the current kernel for this session
     get kernel(): Kernel.IKernelConnection {
         return this._kernel;
+    }
+
+    get kernelSocketInformation(): KernelSocketInformation | undefined {
+        return {
+            socket: this._kernel.socket,
+            options: {
+                id: this._kernel.id,
+                clientId: this._clientID,
+                userName: '',
+                model: this._kernel.model
+            }
+        };
     }
 
     // Provide status changes for the attached kernel
