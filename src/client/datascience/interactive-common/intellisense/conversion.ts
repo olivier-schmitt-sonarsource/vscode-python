@@ -308,7 +308,6 @@ export function convertToMonacoHover(
 
 export function convertStringsToSuggestions(
     strings: ReadonlyArray<string>,
-    range: monacoEditor.IRange,
     // tslint:disable-next-line: no-any
     metadata: any
 ): monacoEditor.languages.CompletionItem[] {
