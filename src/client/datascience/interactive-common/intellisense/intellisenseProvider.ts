@@ -325,22 +325,6 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
                     this.sentOpenDocument = true;
                     return languageServer.handleOpen(document);
                 } else {
-                    const syncOptions = languageServer.textDocumentSync;
-                    const syncKind =
-                        syncOptions !== undefined && syncOptions.hasOwnProperty('change')
-                            ? (syncOptions as vscodeLanguageClient.TextDocumentSyncOptions).change
-                            : syncOptions;
-                    // Modify the changes based on the languageServer capablities
-                    if (syncKind === vscodeLanguageClient.TextDocumentSyncKind.Full) {
-                        // This means we actually need to send the entire document for each change
-                        changes = [
-                            {
-                                text: document.getText()
-                            } as any
-                        ];
-                        return languageServer.handleChanges(document, changes);
-                    }
-
                     return languageServer.handleChanges(document, changes);
                 }
             }

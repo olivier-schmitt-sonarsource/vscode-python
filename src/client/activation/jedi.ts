@@ -25,7 +25,6 @@ import {
     WorkspaceEdit
 } from 'vscode';
 
-import { TextDocumentSyncKind, TextDocumentSyncOptions } from 'vscode-languageclient';
 import { PYTHON } from '../common/constants';
 import { traceError } from '../common/logger';
 import { IConfigurationService, IDisposable, IExtensionContext, Resource } from '../common/types';
@@ -103,11 +102,6 @@ export class JediExtensionActivator implements ILanguageServerActivator {
     public deactivate() {
         this.registrations.forEach((r) => r.dispose());
         this.registrations = [];
-    }
-
-    public get textDocumentSync(): TextDocumentSyncKind | TextDocumentSyncOptions {
-        // Jedi supports incremental
-        return TextDocumentSyncKind.Incremental;
     }
 
     public activate() {
