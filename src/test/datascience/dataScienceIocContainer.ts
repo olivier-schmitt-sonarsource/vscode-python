@@ -527,7 +527,10 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
     }
 
     //tslint:disable:max-func-body-length
-    public registerDataScienceTypes(useCustomEditor: boolean = false) {
+    public registerDataScienceTypes(
+        useCustomEditor: boolean = false,
+        languageServerType: LanguageServerType = LanguageServerType.Microsoft
+    ) {
         // Inform the cacheable locator service to use a static map so that it stays in memory in between tests
         CacheableLocatorPromiseCache.forceUseStatic();
 
@@ -670,11 +673,6 @@ export class DataScienceIocContainer extends UnitTestIocContainer {
             TerminalActivationProviders.pipenv
         );
         this.serviceManager.addSingleton<ITerminalManager>(ITerminalManager, TerminalManager);
-
-        //const configuration = this.serviceManager.get<IConfigurationService>(IConfigurationService);
-        //const pythonSettings = configuration.getSettings();
-        const languageServerType = LanguageServerType.Microsoft; // pythonSettings.languageServer;
-
         this.serviceManager.addSingleton<ILanguageServerProxy>(ILanguageServerProxy, MockLanguageServerProxy);
         this.serviceManager.addSingleton<ILanguageServerCache>(
             ILanguageServerCache,
