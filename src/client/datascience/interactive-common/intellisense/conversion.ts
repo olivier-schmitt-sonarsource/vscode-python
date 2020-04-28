@@ -126,7 +126,7 @@ const mapJupyterKind: Map<string, number> = new Map<string, number>([
     ['folder', monacoCompletionItemKind.Folder],
     ['typeParameter', monacoCompletionItemKind.TypeParameter],
     ['snippet', monacoCompletionItemKind.Snippet],
-    ['<unknown>', monacoCompletionItemKind.Snippet]
+    ['<unknown>', monacoCompletionItemKind.Field]
 ]);
 
 function convertToMonacoRange(range: vscodeLanguageClient.Range | undefined): monacoEditor.IRange | undefined {
@@ -318,18 +318,19 @@ export function convertStringsToSuggestions(
         // tslint:disable-next-line: no-any
         kinds = metadata._jupyter_types_experimental.map((e: any) => {
             const result = mapJupyterKind.get(e.type);
-            return result ? result : 4; // If not found use Field = 4
+            return result ? result : 3; // If not found use Field = 3
         });
     }
 
     return strings.map((s: string, i: number) => {
-        return {
+        return ({
             label: s,
             insertText: s,
-            sortText: s,
-            kind: kinds ? kinds[i] : 4, // Note: importing the monacoEditor.languages.CompletionItemKind causes a failure in loading the extension. So we use numbers.
-            range
-        };
+            sortText: '1',
+            kind: kinds ? kinds[i] : 3, // Note: importing the monacoEditor.languages.CompletionItemKind causes a failure in loading the extension. So we use numbers.
+            range: undefined // This is undefined for results from the language server. Mimic that.
+            // tslint:disable-next-line: no-any
+        } as any) as monacoEditor.languages.CompletionItem;
     });
 }
 
