@@ -53,6 +53,10 @@ export class RefCountedLanguageServer implements ILanguageServerActivator {
         throw new Error('Server should have already been started. Do not start the wrapper.');
     }
 
+    public get textDocumentSync() {
+        return this.impl.textDocumentSync;
+    }
+
     public activate() {
         this.impl.activate();
     }

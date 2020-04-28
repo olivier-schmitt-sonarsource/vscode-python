@@ -124,8 +124,12 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
                 this.dispatchMessage(message, payload, this.restartKernel);
                 break;
 
-            case InteractiveWindowMessages.NotebookExecutionActivated:
+            case InteractiveWindowMessages.NotebookIdentity:
                 this.dispatchMessage(message, payload, this.setIdentity);
+                break;
+
+            case InteractiveWindowMessages.NotebookExecutionActivated:
+                this.dispatchMessage(message, payload, this.updateIdentity);
                 break;
 
             case InteractiveWindowMessages.LoadAllCellsComplete:
@@ -175,9 +179,13 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
             ? activeNotebook.getMatchingInterpreter()
             : await this.interpreterService.getActiveInterpreter(resource);
 
+        const newPath = resource?.fsPath;
+        const oldPath = this.resource?.fsPath;
+
         // See if the resource or the interpreter are different
         if (
-            resource?.toString() !== this.resource?.toString() ||
+            (newPath && !oldPath) ||
+            (newPath && oldPath && !this.fileSystem.arePathsSame(newPath, oldPath)) ||
             interpreter?.path !== this.interpreter?.path ||
             this.languageServer === undefined
         ) {
@@ -317,11 +325,13 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
                     this.sentOpenDocument = true;
                     return languageServer.handleOpen(document);
                 } else {
+                    const syncOptions = languageServer.textDocumentSync;
+                    const syncKind =
+                        syncOptions !== undefined && syncOptions.hasOwnProperty('change')
+                            ? (syncOptions as vscodeLanguageClient.TextDocumentSyncOptions).change
+                            : syncOptions;
                     // Modify the changes based on the languageServer capablities
-                    if (
-                        languageServer.textDocumentSync &&
-                        languageServer.textDocumentSync === vscodeLanguageClient.TextDocumentSyncKind.Full
-                    ) {
+                    if (syncKind === vscodeLanguageClient.TextDocumentSyncKind.Full) {
                         // This means we actually need to send the entire document for each change
                         changes = [
                             {
@@ -721,10 +731,14 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
         }
     }
 
-    private setIdentity(identity: INotebookIdentity & { owningResource: Resource }) {
+    private setIdentity(identity: INotebookIdentity) {
         this.notebookIdentity = identity.resource;
-        this.potentialResource = identity.owningResource;
+        this.potentialResource = identity.resource.scheme === 'file' ? identity.resource : undefined;
         this.notebookType = identity.type;
+    }
+
+    private updateIdentity(identity: INotebookIdentity & { owningResource: Resource }) {
+        this.potentialResource = identity.owningResource ? identity.owningResource : this.potentialResource;
     }
 
     private async getNotebook(): Promise<INotebook | undefined> {
