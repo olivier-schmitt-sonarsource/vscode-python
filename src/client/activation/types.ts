@@ -17,7 +17,12 @@ import {
     TextDocument,
     TextDocumentContentChangeEvent
 } from 'vscode';
-import { LanguageClient, LanguageClientOptions } from 'vscode-languageclient';
+import {
+    LanguageClient,
+    LanguageClientOptions,
+    TextDocumentSyncKind,
+    TextDocumentSyncOptions
+} from 'vscode-languageclient';
 import { NugetPackage } from '../common/nuget/types';
 import { IDisposable, IOutputChannel, LanguageServerDownloadChannels, Resource } from '../common/types';
 import { PythonInterpreter } from '../interpreter/contracts';
@@ -72,6 +77,7 @@ export enum LanguageServerType {
 
 // tslint:disable-next-line: interface-name
 export interface DocumentHandler {
+    readonly textDocumentSync: TextDocumentSyncKind | TextDocumentSyncOptions;
     handleOpen(document: TextDocument): void;
     handleChanges(document: TextDocument, changes: TextDocumentContentChangeEvent[]): void;
 }

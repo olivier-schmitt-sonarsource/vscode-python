@@ -73,6 +73,22 @@ export abstract class LanguageServerActivatorBase implements ILanguageServerActi
 
     public abstract async ensureLanguageServerIsAvailable(resource: Resource): Promise<void>;
 
+    public get textDocumentSync():
+        | vscodeLanguageClient.TextDocumentSyncOptions
+        | vscodeLanguageClient.TextDocumentSyncKind {
+        const languageClient = this.getLanguageClient();
+        if (
+            languageClient &&
+            languageClient.initializeResult &&
+            languageClient.initializeResult.capabilities.textDocumentSync !== undefined
+        ) {
+            return languageClient.initializeResult.capabilities.textDocumentSync;
+        }
+
+        // Default is full if not provided
+        return vscodeLanguageClient.TextDocumentSyncKind.Full;
+    }
+
     public activate(): void {
         this.manager.connect();
     }

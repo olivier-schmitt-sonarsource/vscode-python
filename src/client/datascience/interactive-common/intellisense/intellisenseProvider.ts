@@ -124,7 +124,7 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
                 this.dispatchMessage(message, payload, this.restartKernel);
                 break;
 
-            case InteractiveWindowMessages.NotebookIdentity:
+            case InteractiveWindowMessages.NotebookExecutionActivated:
                 this.dispatchMessage(message, payload, this.setIdentity);
                 break;
 
@@ -317,6 +317,20 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
                     this.sentOpenDocument = true;
                     return languageServer.handleOpen(document);
                 } else {
+                    // Modify the changes based on the languageServer capablities
+                    if (
+                        languageServer.textDocumentSync &&
+                        languageServer.textDocumentSync === vscodeLanguageClient.TextDocumentSyncKind.Full
+                    ) {
+                        // This means we actually need to send the entire document for each change
+                        changes = [
+                            {
+                                text: document.getText()
+                            } as any
+                        ];
+                        return languageServer.handleChanges(document, changes);
+                    }
+
                     return languageServer.handleChanges(document, changes);
                 }
             }
@@ -707,9 +721,9 @@ export class IntellisenseProvider implements IInteractiveWindowListener {
         }
     }
 
-    private setIdentity(identity: INotebookIdentity) {
+    private setIdentity(identity: INotebookIdentity & { owningResource: Resource }) {
         this.notebookIdentity = identity.resource;
-        this.potentialResource = identity.resource;
+        this.potentialResource = identity.owningResource;
         this.notebookType = identity.type;
     }
 

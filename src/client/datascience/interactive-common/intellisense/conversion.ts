@@ -318,7 +318,7 @@ export function convertStringsToSuggestions(
         // tslint:disable-next-line: no-any
         kinds = metadata._jupyter_types_experimental.map((e: any) => {
             const result = mapJupyterKind.get(e.type);
-            return result ? result : 3; // If not found use Field = 3
+            return result ? result : 4; // If not found use Field = 4
         });
     }
 
@@ -327,7 +327,7 @@ export function convertStringsToSuggestions(
             label: s,
             insertText: s,
             sortText: s,
-            kind: kinds ? kinds[i] : 3, // Note: importing the monacoEditor.languages.CompletionItemKind causes a failure in loading the extension. So we use numbers.
+            kind: kinds ? kinds[i] : 4, // Note: importing the monacoEditor.languages.CompletionItemKind causes a failure in loading the extension. So we use numbers.
             range
         };
     });
