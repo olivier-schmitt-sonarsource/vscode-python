@@ -15,11 +15,11 @@ import { noop } from '../core';
 import { DataScienceIocContainer } from './dataScienceIocContainer';
 import * as InteractiveHelpers from './interactiveWindowTestHelpers';
 import * as NativeHelpers from './nativeEditorTestHelpers';
-import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from './testHelpers';
+import { addMockData, enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from './testHelpers';
 
 // tslint:disable:max-func-body-length trailing-comma no-any no-multiline-string
 [LanguageServerType.Microsoft, LanguageServerType.Node].forEach((languageServerType) => {
-    suite('DataScience Intellisense tests', () => {
+    suite(`DataScience Intellisense tests with ${languageServerType} LanguageServer mocked`, () => {
         const disposables: Disposable[] = [];
         let ioc: DataScienceIocContainer;
 
@@ -457,6 +457,9 @@ import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from 
             async (wrapper) => {
                 // Create an interactive window so that it listens to the results.
                 const window = await InteractiveHelpers.getOrCreateInteractiveWindow(ioc);
+                addMockData(ioc, 'a=1\na', 1);
+                addMockData(ioc, 'b=2\nb', 2);
+
                 await InteractiveHelpers.addCode(ioc, wrapper, 'a=1\na');
                 await InteractiveHelpers.addCode(ioc, wrapper, 'b=2\nb');
 
