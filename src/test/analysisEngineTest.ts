@@ -12,6 +12,7 @@ process.env.VSC_PYTHON_LANGUAGE_SERVER = '1';
 process.env.TEST_FILES_SUFFIX = 'ls.test';
 
 function start() {
+    console.log('dummy')
     console.log('*'.repeat(100));
     console.log('Start Language Server tests');
     require('../../node_modules/vscode/bin/test');
