@@ -159,8 +159,12 @@ import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from 
                 const hover = editor.getContribution('editor.contrib.hover') as any;
                 if (hover && hover.contentWidget) {
                     const promise = createDeferred<void>();
+                    const timer = setTimeout(() => {
+                        promise.reject(new Error('Timed out waiting for hover'));
+                    }, 10000);
                     const originalShowAt = hover.contentWidget.showAt.bind(hover.contentWidget);
                     hover.contentWidget.showAt = (p: any, r: any, f: any) => {
+                        clearTimeout(timer);
                         promise.resolve();
                         hover.contentWidget.showAt = originalShowAt;
                         originalShowAt(p, r, f);
@@ -170,9 +174,6 @@ import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from 
                         0,
                         false
                     );
-                    setTimeout(() => {
-                        promise.reject(new Error('Timed out waiting for hover'));
-                    }, 10000);
                     return promise.promise;
                 }
             }
@@ -444,6 +445,7 @@ import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from 
                 // Cause a hover event over the first character
                 await waitForHover('Native', wrapper, 1, 1);
                 verifyHoverVisible('Native', wrapper, 'a=1\na');
+                await NativeHelpers.closeNotebook(notebook, wrapper);
             },
             () => {
                 return ioc;
@@ -454,13 +456,15 @@ import { enterEditorKey, getInteractiveEditor, getNativeEditor, typeCode } from 
             'Hover on interactive',
             async (wrapper) => {
                 // Create an interactive window so that it listens to the results.
-                await InteractiveHelpers.getOrCreateInteractiveWindow(ioc);
+                const window = await InteractiveHelpers.getOrCreateInteractiveWindow(ioc);
                 await InteractiveHelpers.addCode(ioc, wrapper, 'a=1\na');
                 await InteractiveHelpers.addCode(ioc, wrapper, 'b=2\nb');
 
                 // Cause a hover event over the first character
                 await waitForHover('Interactive', wrapper, 1, 1);
                 verifyHoverVisible('Interactive', wrapper, 'a=1\na\nb=2\nb');
+
+                await InteractiveHelpers.closeInteractiveWindow(window, wrapper);
             },
             () => {
                 return ioc;
